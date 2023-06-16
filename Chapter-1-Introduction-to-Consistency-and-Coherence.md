@@ -1,13 +1,13 @@
 # 第一章：Consistency 和 Coherence简介
 许多现代计算机系统和大多数多核芯片（芯片多处理器）都支持硬件中的共享内存 (shared memory)。在共享内存系统中，每个处理器核心都可以读取和写入单个共享地址空间。这些设计寻求各种优良特性，例如高性能、低功耗和低成本。当然，在不首先提供正确性的情况下提供这些优良属性是没有价值的。正确的共享内存不深入细想的话，似乎很直观，但是，正如本次讲座将帮助展示的那样，即使在定义共享内存系统正确的含义时也存在一些微妙的问题，以及在设计一个正确的共享内存实现时也存在一些微妙的极端情况。此外，必须在错误修复成本高昂的硬件实现中掌握这些微妙之处。即使是学者也应该掌握这些微妙之处，以使他们提出的设计更有可能奏效。
 
-设计和评估正确的共享内存系统需要架构师了解 memory consistency 和 cache coherence，这是本入门书的两个主题。Memory consistency (consistency, memory consistency model, or memory model) 是共享内存正确性的精确、架构上可见的定义。Consistency 定义提供了有关 load 和 store（或内存读取和写入）以及它们如何作用于内存的规则。理想情况下，consistency 定义简单易懂。但是，定义共享内存正确运行的含义比定义例如单线程处理器核心的正确行为更为微妙。单个处理器核心的正确性标准将行为划分为一个正确的结果和许多不正确的选择。这是因为处理器的架构要求线程的执行将给定的输入状态转换为单个明确定义的输出状态，即使在乱序核心上也是如此。然而，shared memory consistency model 涉及多个线程的 load 和 store，通常允许许多正确的执行而不允许许多（更多）不正确的执行。多次正确执行的可能性是由于 ISA 允许多个线程同时执行，通常来自不同线程的指令有许多可能的合法交织。大量正确的执行使以前确定执行是否正确的简单挑战变得复杂。然而，必须掌握 consistency 以实现共享内存，并且在某些情况下，编写使用它的正确程序。
+设计和评估正确的共享内存系统需要架构师了解 **memory consistency** 和 **cache coherence**，这正是本入门书的两个主题。Memory consistency (consistency, memory consistency model, or memory model) 是对于共享内存正确性的精确的、架构上可见的定义。Consistency 的定义提供了有关 loads 和 stores (or memory reads and writes) 的规则，以及它们如何作用于内存。在理想情况下，consistency 的定义简单易懂。但是，定义共享内存正确运行的含义比定义单线程处理器核心的正确行为更为微妙。单个处理器核心的正确性标准将行为划分为一个正确的结果和许多不正确的选择。这是因为，处理器的架构要求线程的执行将给定的输入状态转换为单个明确定义的输出状态，即使在乱序核心上也是如此。然而，shared memory consistency model 涉及多个线程的 loads 和 stores，通常允许许多正确的执行，而不允许更多不正确的执行。多次正确执行的可能性是由于 ISA 允许多个线程同时执行，通常来自不同线程的指令有许多可能的合法交织。大量正确的执行使以前确定执行是否正确的简单挑战变得复杂。然而，必须掌握 consistency 以实现共享内存，并且在某些情况下，编写使用共享内存的正确程序。
 
-微架构——处理器核心和共享内存系统的硬件设计——必须强制执行所需的 consistency model。作为这种 consistency model 支持的一部分，硬件提供 cache coherence (or coherence)。在具有缓存的共享内存系统中，当其中一个处理器更新其缓存值时，缓存值可能会过期 (or incoherent)。Coherence 试图使共享内存系统的缓存在功能上与单核系统中的缓存一样不可见。它通过将处理器的写入传播到其他处理器的缓存来实现。值得强调的是，与定义共享内存正确性的架构规范的 consistency 不同，coherence 是支持 consistency model 的一种手段。
+微架构——处理器核心和共享内存系统的硬件设计——必须强制实现所需的 consistency model。为了支持 consistency model，硬件需要提供 cache coherence (or coherence)。在具有缓存的共享内存系统中，当其中一个处理器更新其缓存值时，缓存值可能会过期 (or incoherent)。Coherence 试图使共享内存系统的缓存在功能上与单核系统中的缓存一样不可见。它通过将一个处理器的 write 传播到其他处理器的缓存来实现这个特性。值得强调的是，consistency 定义了共享内存的正确性，需要在架构规范中描述。而 coherence 与 consistency 不同，coherence 是支持 consistency model 的一种手段。
 
-尽管 consistency 是这本入门书的第一个主要主题，但我们在第 2 章开始简要介绍 coherence，因为 coherence 协议在提供 consistency 方面发挥着重要作用。第 2 章的目标是充分解释 coherence 以了解 consistency model 如何与 coherent cache 交互，而不是探索特定的 coherence 协议或实现，这些主题我们将推迟到第 6-9 章的本入门书的第二部分。
+尽管 consistency 是这本入门书的第一个主要主题，但我们在第 2 章开始会首先简要介绍 coherence，因为 coherence 协议在提供 consistency 方面发挥着重要作用。第 2 章的目标是充分解释 coherence 以了解 consistency model 如何与 coherent cache 交互，而不是探索特定的 coherence 协议或实现。关于 coherence 的协议或实现的相关主题，我们将推迟到第 6-9 章，作为本入门书的第二部分。
 
-## 1.1 Consistency
+## 1.1 Consistency (A.K.A., Memory Consistency, Memory Consistency Model, or Memory Model)
 Consistency model 根据 load 和 store（内存读取和写入）定义正确的共享内存行为，而不涉及缓存或 coherence。为了获得关于我们为什么需要 consistency model 的一些真实世界的直觉，请考虑一所在线发布其课程安排的大学。假设计算机体系结构课程原定在 152 室。开课前一天，大学注册处决定将课程搬到 252 室。注册处发送电子邮件，要求网站管理员更新在线课程表，几分钟后，注册处会向所有注册的学生发送一条短信，去检查新更新的时间表。不难想象一个场景——比如说，网站管理员太忙而无法立即发布更新——一个勤奋的学生收到短信，立即查看在线时间表，并且仍然观察（旧）课堂位置 152 房间。尽管在线时间表最终更新为 252 房间，并且注册处以正确的顺序执行“写入”，但这位勤奋的学生以不同的顺序观察它们，因此去了错误的房间。Consistency model 定义了这种行为是正确的（因此用户是否必须采取其他行动来实现预期的结果）还是不正确的（在这种情况下，系统必须排除这些重新排序）。
 
 尽管这个人为的示例使用了多种媒体，但在具有乱序处理器核心、write buffer、预取和 multiple cache bank 的共享内存硬件中也可能发生类似的行为。因此，我们需要定义共享内存的正确性——即允许哪些共享内存行为——以便程序员知道期望什么，实现者知道他们可以提供的限制。
