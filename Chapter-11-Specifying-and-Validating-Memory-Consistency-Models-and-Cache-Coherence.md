@@ -25,7 +25,9 @@
 
 ### 11.1.1 Operational Specification
 
-一份操作性的规范 (operational specification) 使用参考实现 (reference implementation) 来描述系统的行为，通常以状态机的形式表示。参考实现展示的行为，即输入/输出动作的序列，*定义*了系统所有合法行为的集合。操作模型 (operational models) 通常使用内部状态和内部动作来约束系统的行为，从而确保安全性 (safety)。操作模型的活跃性 (liveness) 取决于状态变化最终必须发生的事实。通常，活跃性是在外部（在状态机规范之外）表达的，它会使用以*时态逻辑 (temporal logic)* [31] 编写的数学公理。
+一份操作性的规范 (operational specification) 使用参考实现 (reference implementation) 来描述系统的行为，通常以状态机的形式表示。参考实现展示的行为，即输入/输出动作的序列，*定义*了系统所有合法行为的集合。操作模型 (operational models) 通常使用内部状态和内部动作来约束系统的行为，从而确保安全性 (safety)。操作模型的活跃性 (liveness) 取决于状态变化最终必须发生的事实。通常，活跃性是在外部（在状态机规范之外）表达的，它会使用以*时间逻辑 (temporal logic)* [31] 编写的数学公理。
+
+>译者注：我们将 "temporal logic" 翻译为“时间逻辑”，以区别于通常被翻译为“时序逻辑”的 "sequential logic"。
 
 **Specifying consistency models and coherence protocols operationally**
 
