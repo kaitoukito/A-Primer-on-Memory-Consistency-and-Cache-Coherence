@@ -14,3 +14,13 @@
 **Consistency models: Observable actions and behavior**
 
 一个 memory consistency model 是软件（用户）和硬件（实现者）之间的契约。给定包含 per-thread 的 loads 和 stores 序列的多线程程序，memory model 指定每个 load 必须返回的值。因此，相关的输入动作是 loads 和 stores（以及它们的相关参数，包括处理器的 core ID、地址、以及在一次 store 中所要存储的值）。输出动作是响应 loads 的返回值。这些可观察的动作（stores、loads 和返回值）的序列，代表了 memory consistency model 的行为。
+
+**Coherence protocols: Observable actions and behavior**
+
+回想一下，处理器核心流水线与 coherence protocol 交互，以共同实现所需的 memory consistency model。因此，coherence protocol 的“用户”是与其交互的流水线，具体通过以下两个输入操作：(1) 程序中每个 load 的 read-request；(2) 程序中每个 store 的 write-request。Coherence protocol 的输出动作是：(1) read-return，为每个 read-request 返回一个值；(2) write-return，简单地对 write-request 进行确认 (acknowledge)。（流水线必须知道一个 write 何时完成。）这些可观察的动作的序列，代表了 coherence protocol 的外部的可观察行为。
+
+重要的是，要注意 coherence protocol 与 consistency model 中，可观察的内容之间的区别。在 coherence protocol 中，一个 read-request 或 write-request 返回的瞬间是可观察的。然而，对于 consistency model，一个 load 或 store 返回的瞬间是不可观察的，只有 loads 返回的值是可观察的。
+
+接下来，我们讨论指定系统行为的两种主要方法：*操作法 (operational method)* 和*公理法 (axiomatic method)*。在前者中，系统使用一个抽象参考实现 (abstract reference implementation) 来描述，而在后者中，数学公理 (mathematical axioms) 用于描述系统的行为。
+
+### 11.1.1 Operational Specification
