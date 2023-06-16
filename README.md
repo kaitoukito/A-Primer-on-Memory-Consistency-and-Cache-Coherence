@@ -1,5 +1,15 @@
 # A-Primer-on-Memory-Consistency-and-Cache-Coherence
 
+本项目是《A Primer on Memory Consistency and Cache Coherence (2nd Edition)》的中文翻译。
+
+[英文版pdf下载地址](https://github.com/kaitoukito/Computer-Science-Textbooks/blob/master/A-Primer-on-Memory-Consistency-and-Cache-Coherence-2nd-Edition.pdf
+)
+
+## 译序
+由于历史原因，"memory consistency" 被翻译为 “内存一致性”，"cache coherence" 被翻译为“缓存一致性”，中文翻译并没有很好地将 "consistency"、"coherence" 这两个单词区分开来。为做区分，本系列文章将 "memory consistency" 翻译为“内存连贯性”，"cache coherence" 翻译为“缓存一致性”。当然了，为避免混淆，如无必要，尽量不对这两个术语进行翻译。
+
+
+
 ## 目录
 [序言](Abstract.md)
 
