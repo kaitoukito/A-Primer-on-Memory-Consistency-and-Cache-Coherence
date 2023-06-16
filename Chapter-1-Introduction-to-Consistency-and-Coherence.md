@@ -1,3 +1,4 @@
+# 第一章：Consistency 和 Coherence简介
 许多现代计算机系统和大多数多核芯片（芯片多处理器）都支持硬件中的共享内存 (shared memory)。在共享内存系统中，每个处理器核心都可以读取和写入单个共享地址空间。这些设计寻求各种优良特性，例如高性能、低功耗和低成本。当然，在不首先提供正确性的情况下提供这些优良属性是没有价值的。正确的共享内存不深入细想的话，似乎很直观，但是，正如本次讲座将帮助展示的那样，即使在定义共享内存系统正确的含义时也存在一些微妙的问题，以及在设计一个正确的共享内存实现时也存在一些微妙的极端情况。此外，必须在错误修复成本高昂的硬件实现中掌握这些微妙之处。即使是学者也应该掌握这些微妙之处，以使他们提出的设计更有可能奏效。
 
 设计和评估正确的共享内存系统需要架构师了解 memory consistency 和 cache coherence，这是本入门书的两个主题。Memory consistency (consistency, memory consistency model, or memory model) 是共享内存正确性的精确、架构上可见的定义。Consistency 定义提供了有关 load 和 store（或内存读取和写入）以及它们如何作用于内存的规则。理想情况下，consistency 定义简单易懂。但是，定义共享内存正确运行的含义比定义例如单线程处理器核心的正确行为更为微妙。单个处理器核心的正确性标准将行为划分为一个正确的结果和许多不正确的选择。这是因为处理器的架构要求线程的执行将给定的输入状态转换为单个明确定义的输出状态，即使在乱序核心上也是如此。然而，shared memory consistency model 涉及多个线程的 load 和 store，通常允许许多正确的执行而不允许许多（更多）不正确的执行。多次正确执行的可能性是由于 ISA 允许多个线程同时执行，通常来自不同线程的指令有许多可能的合法交织。大量正确的执行使以前确定执行是否正确的简单挑战变得复杂。然而，必须掌握 consistency 以实现共享内存，并且在某些情况下，编写使用它的正确程序。
@@ -6,7 +7,7 @@
 
 尽管 consistency 是这本入门书的第一个主要主题，但我们在第 2 章开始简要介绍 coherence，因为 coherence 协议在提供 consistency 方面发挥着重要作用。第 2 章的目标是充分解释 coherence 以了解 consistency model 如何与 coherent cache 交互，而不是探索特定的 coherence 协议或实现，这些主题我们将推迟到第 6-9 章的本入门书的第二部分。
 
-1.1 Consistency
+## 1.1 Consistency
 Consistency model 根据 load 和 store（内存读取和写入）定义正确的共享内存行为，而不涉及缓存或 coherence。为了获得关于我们为什么需要 consistency model 的一些真实世界的直觉，请考虑一所在线发布其课程安排的大学。假设计算机体系结构课程原定在 152 室。开课前一天，大学注册处决定将课程搬到 252 室。注册处发送电子邮件，要求网站管理员更新在线课程表，几分钟后，注册处会向所有注册的学生发送一条短信，去检查新更新的时间表。不难想象一个场景——比如说，网站管理员太忙而无法立即发布更新——一个勤奋的学生收到短信，立即查看在线时间表，并且仍然观察（旧）课堂位置 152 房间。尽管在线时间表最终更新为 252 房间，并且注册处以正确的顺序执行“写入”，但这位勤奋的学生以不同的顺序观察它们，因此去了错误的房间。Consistency model 定义了这种行为是正确的（因此用户是否必须采取其他行动来实现预期的结果）还是不正确的（在这种情况下，系统必须排除这些重新排序）。
 
 尽管这个人为的示例使用了多种媒体，但在具有乱序处理器核心、write buffer、预取和 multiple cache bank 的共享内存硬件中也可能发生类似的行为。因此，我们需要定义共享内存的正确性——即允许哪些共享内存行为——以便程序员知道期望什么，实现者知道他们可以提供的限制。
@@ -21,7 +22,7 @@ Consistency model 根据 load 和 store（内存读取和写入）定义正确�
 
 回到课程表的真实世界的 consistency 示例，我们可以观察到电子邮件系统、人工网络管理员和文本消息系统的组合代表了一个极其弱的 consistency model。为了防止勤奋的学生走错房间的问题，大学注册处需要在她的电子邮件之后执行 FENCE 操作，以确保在发送短信之前更新在线时间表。
 
-1.2 Coherence
+## 1.2 Coherence
 除非小心，否则如果多个参与者（例如，多个核心）可以访问数据的多个副本（例如，在多个缓存中）并且至少一个访问是写入，则可能会出现 coherence 问题。考虑一个类似于 memory consistency 示例的示例。一名学生查看在线课程表，发现计算机体系结构课程正在 152 室进行（读取数据），并将此信息复制到她手机中的日历应用程序中（缓存数据）。随后，大学注册处决定将班级搬到 252 室，更新在线时间表（写入数据）并通过短信通知学生。学生的数据副本现在已经过时，我们的情况 incoherent。如果她去 152 室，她将找不到她的班级。计算领域的 incoherence 示例（但不包括计算机体系结构）包括陈旧的 Web 缓存和使用未更新代码存储库的程序员。
 
 使用 coherence 协议可以防止对陈旧数据的访问 (incoherence)，coherence 协议是由系统内的分布式参与者集合实现的一组规则。Coherence 协议有许多变体，但遵循一些主题，如第 6-9 章所述。本质上，所有变体都通过将写入传播到所有缓存来使一个处理器的写入对其他处理器可见，即保持日历与在线时间表同步。但是协议在同步发生的时间 (when) 和方式 (how) 上有所不同。Coherence 协议有两大类。在第一类中，连贯性协议确保写入同步传播到缓存。当在线时间表更新时，连贯性协议确保学生的日历也得到更新。在第二类中，连贯性协议将写入异步传播到缓存，同时仍然遵循 consistency model。Coherence 协议不保证在线日程更新时，新值也会传播到学生的日历；但是，该协议确实确保在短信到达她的手机之前传播新值。本入门书侧重于第一类 coherence 协议（第 6-9 章），而第 10 章讨论新兴的第二类。
@@ -34,17 +35,17 @@ Consistency model 根据 load 和 store（内存读取和写入）定义正确�
 
 第 9 章讨论了一些但不是全部的 coherence 高级主题。为了便于解释，前面关于 coherence 的章节有意将自己限制在解释基本问题所需的最简单的系统模型上。第 9 章深入研究了更复杂的系统模型和优化，重点关注监听和目录协议共同的问题。最初的主题包括处理指令缓存、多级缓存、直写缓存、TLB、coherent DMA、虚拟缓存和 hierarchical coherence 协议。最后，本章深入探讨了性能优化（例如，针对 migratory sharing 和 false sharing）和一个名为 Token Coherence 的新协议族，它包含目录和监听连贯性。
 
-1.3 异构系统的 Consistency 和 Coherence
+## 1.3 异构系统的 Consistency 和 Coherence
 现代计算机系统主要是异构的。今天的手机处理器不仅包含多核 CPU，还包含 GPU 和其他加速器（例如神经网络硬件）。在寻求可编程性的过程中，这种异构系统开始支持共享内存。第 10 章讨论这种异构处理器的 consistency 和 coherence。
 
 本章首先关注 GPU，可以说是当今最流行的加速器。本章观察到 GPU 最初选择不支持硬件 cache coherence，因为 GPU 是为尴尬的并行图形工作负载而设计的，这些工作负载并不同步或共享数据。然而，当 GPU 用于具有细粒度同步和数据共享的通用工作负载时，缺乏硬件 cache coherence 会导致可编程性和/或性能挑战。本章详细讨论了克服这些限制的一些有希望的 coherence 替代方案——特别是解释了为什么候选协议直接执行 consistency model 而不是以 consistency-agnostic 的方式实现 coherence。本章最后简要讨论了 CPU 和加速器之间的 consistency 和 coherence。
 
-1.4 指定和验证 Memory Consistency Model 和 Cache Coherence
+## 1.4 指定和验证 Memory Consistency Model 和 Cache Coherence
 Consistency model 和 coherence 协议是复杂而微妙的。 然而，必须管理这种复杂性，以确保多核是可编程的，并且它们的设计可以得到验证。 为了实现这些目标，形式化地指定 consistency model 至关重要。 形式化的规范将使程序员能够清楚而详尽地（通过工具支持）了解内存模型允许哪些行为，不允许哪些行为。 其次，一个精确的形式化规范对于验证实现是强制性的。
 
 第 11 章首先讨论了指定系统的两种方法——公理 (axiomatic) 和操作 (operational)——重点关注如何将这些方法应用于 consistency model 和 coherence 协议。 然后本章讨论了验证实现的技术——包括处理器流水线和 coherence 协议实现——是否符合它们的规范。 本章讨论了形式化方法和非形式化测试。
 
-1.5 Consistency 和 Coherence 小测验
+## 1.5 Consistency 和 Coherence 小测验
 很容易确保自己对 consistency 和 coherence 的了解是否足够了，如果是，就没有必要阅读这本入门书。 为了测试是否是这种情况，我们提供了这个小测验。
 
 问题 1：在维护 sequential consistency (SC) 的系统中，核心必须按程序顺序 (program order) 发出 coherence 请求。对或错？（答案在第 3.8 节）
@@ -65,7 +66,7 @@ Consistency model 和 coherence 协议是复杂而微妙的。 然而，必须�
 
 尽管本入门书稍后提供了答案，但我们鼓励读者在查看答案之前尝试回答问题。
 
-1.6 本入门书不能做什么
+## 1.6 本入门书不能做什么
 本讲座旨在成为 consistency 和 coherence 的入门知识。我们预计研究生课程可以在大约 10 节 75 分钟的课程中涵盖这种材料（例如，从第 2 章到第 11 章，每章一节课）。
 
 为此，本入门书没有涵盖许多内容。其中一些包括以下内容。
@@ -74,7 +75,8 @@ Consistency model 和 coherence 协议是复杂而微妙的。 然而，必须�
 商用的 Relaxed Consistency Model。本入门书不涉及 ARM、PowerPC 和 RISC-V 内存模型的微妙之处，但确实描述了它们提供哪些机制来强制执行顺序。
 并行编程。本入门书不讨论并行编程模型、方法或工具。
 分布式系统的 Consistency。本入门书仅限于共享内存多核内的 consistency，不包括在一般分布式系统中的 consistency 模型及其实现。读者可参考数据库复制综合讲座 [1] 和仲裁系统 [3]。
-1.7 参考文献
+
+## 1.7 参考文献
 [1] B. Kemme, R. Jiménez-Peris, and M. Patiño-Martínez. Database Replication. Synthesis Lectures on Data Management. Morgan & Claypool Publishers, 2010. DOI: 10.1007/978-1-4614-8265-9_110. 8
 
 [2] M. L. Scott. Shared-Memory Synchronization. Synthesis Lectures on Computer Architecture. Morgan & Claypool Publishers, 2013. DOI: 10.2200/s00499ed1v01y201304cac023. 7
