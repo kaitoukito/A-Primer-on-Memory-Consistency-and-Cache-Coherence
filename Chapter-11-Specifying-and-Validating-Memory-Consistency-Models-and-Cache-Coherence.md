@@ -24,3 +24,13 @@
 接下来，我们讨论指定系统行为的两种主要方法：*操作法 (operational method)* 和*公理法 (axiomatic method)*。在前者中，系统使用一个抽象参考实现 (abstract reference implementation) 来描述，而在后者中，数学公理 (mathematical axioms) 用于描述系统的行为。
 
 ### 11.1.1 Operational Specification
+
+一份操作性的规范 (operational specification) 使用参考实现 (reference implementation) 来描述系统的行为，通常以状态机的形式表示。参考实现展示的行为，即输入/输出动作的序列，*定义*了系统所有合法行为的集合。操作模型 (operational models) 通常使用内部状态和内部动作来约束系统的行为，从而确保安全性 (safety)。操作模型的活跃性 (liveness) 取决于状态变化最终必须发生的事实。通常，活跃性是在外部（在状态机规范之外）表达的，它会使用以*时态逻辑 (temporal logic)* [31] 编写的数学公理。
+
+**Specifying consistency models and coherence protocols operationally**
+
+可以使用抽象实现 (abstract implementations) 来操作性地指定 consistency models。与它们的现实对应物一样，抽象实现通常同时具有处理器核心流水线组件 (processor core pipeline component) 和内存系统组件 (memory system component)。回想一下，内存系统组件与 coherence protocol 具有相同的接口（即，相同的可观察动作的集合，其中，可观察的动作是指：read-request、read-return、write-request、write-return），内存系统组件指定了 coherence protocol。
+
+在下文中，我们将描述 sequential consistency (SC) 的两种操作性模型。两种模型具有相同的流水线组件，但它们的内存系统组件不同。前者指定了一个 consistency-agnostic coherence protocol，而后者指定了一个 consistency-directed coherence protocol。这将使我们能够操作性地描述两者之间的差异。
+
+**SC Operational Spec1: In-order pipeline + atomic memory**
