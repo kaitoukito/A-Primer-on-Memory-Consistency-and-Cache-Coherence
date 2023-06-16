@@ -1,3 +1,4 @@
+# 第十章：异构系统的 Consistency 和 Coherence
 这是专业化的时代。今天的服务器、移动和桌面处理器不仅包含传统的 CPU，还包含各种类型的加速器。加速器中最突出的是图形处理单元 (GPU)。其他类型的加速器，包括数字信号处理器 (DSP)、AI 加速器（例如 Apple 的神经引擎、Google 的 TPU）、加密加速器和现场可编程门阵列 (FPGA) 也变得越来越普遍。
 
 然而，这种异构架构带来了可编程性挑战。如何在加速器内和加速器之间进行同步和通信？而且，如何有效地做到这一点？一个有希望的趋势是公开跨 CPU 和加速器的全局共享内存接口 (global shared memory interface)。回想一下，共享内存不仅通过为通信提供直观的 load-store 接口来帮助提高可编程性，而且还有助于通过对程序员透明的缓存获得局部性的好处。
@@ -9,10 +10,10 @@ CPU、GPU 和其他加速器可以紧密集成并实际上共享相同的物理�
 
 在本章中，我们将讨论在这个快速发展的领域中这些问题的潜在答案。我们首先研究加速器内的 consistency 和 coherence，重点是 GPU。然后，我们考虑加速器和 CPU 之间的 consistency 和 coherence。
 
-10.1 GPU Consistency 和 Coherence
+## 10.1 GPU Consistency 和 Coherence
 我们通过简要总结早期的 GPU 架构及其编程模型来开始本节。这将帮助我们了解此类 GPU 中关于 consistency 和 coherence 的设计选择，这些设计主要针对图形工作负载。然后，我们讨论使用类似 GPU 的架构在所谓的通用图形处理单元 (GPGPU) [5] 中运行通用工作负载的趋势。具体来说，我们讨论了 GPGPU 对 consistency 和 coherence 提出的新要求。然后，我们详细讨论了最近为满足这些要求而提出的一些建议。
 
-10.1.1 早期 GPU：架构和编程模型
+### 10.1.1 早期 GPU：架构和编程模型
 早期的 GPU 主要是针对令人尴尬的并行图形工作负载量身定制的。粗略地说，工作负载涉及独立计算构成显示器的每个像素。因此，工作负载的特点是数据并行度非常高，数据共享、同步和通信程度低。
 
 GPU 架构
@@ -67,7 +68,8 @@ Load Ld2 执行，hit SM2 的 L1，并读取 0。
 
 允许跨所有线程同步的严格和直观的 memory consistency model；和
 执行 consistency model 的 coherence 协议，同时允许有效的数据共享和同步，同时保持传统 GPU 架构的简单性，因为 GPU 仍将主要满足图形工作负载。
-10.1.2 重点：GPGPU Consistency 和 Coherence
+
+### 10.1.2 重点：GPGPU Consistency 和 Coherence
 我们已经概述了 GPGPU consistency 和 coherence 所需的属性。满足这些需求的一种直接方法是使用类似多核 CPU 的方法来实现 consistency 和 coherence，即使用一种 consistency-agnostic 的 coherence 协议（我们在第 6-9 章中详细介绍过）来理想地实现强 consistency model，例如 sequential consistency (SC)。尽管勾选了几乎所有的方框——consistency model 肯定是直观的（没有范围的概念），并且 coherence 协议允许有效地共享数据——但这种方法并不适合 GPU。这有两个主要原因 [30]。
 
 首先，在写入时使共享者无效的类似 CPU 的 coherence 协议会在 GPU 上下文中产生高流量开销。这是因为 GPU 中本地缓存 (L1) 的总容量通常与 L2 的大小相当，甚至更大。例如，NVIDIA Volta GPU 的总容量约为 10 MB 的 L1 缓存，而只有 6 MB 的 L2 缓存。一个独立的包含目录 (inclusive directory) 不仅会因为重复的标签而产生很大的面积开销，而且还会因为目录需要高度关联而导致显著的复杂性。另一方面，考虑到聚合 L1 的大小，嵌入式包容性目录会在 L2 驱逐时导致大量的召回流量。
@@ -82,7 +84,7 @@ Load Ld2 执行，hit SM2 的 L1，并读取 0。
 
 Consistency model 是否应该包括范围 (scope) 正在争论中 [15, 16, 23]。尽管范围增加了程序员的复杂性，但它们可以说简化了 consistency 实现。因为不能排除范围，我们在 10.1.4 节中概述了一个 scoped consistency model，它不会将同步限制在范围子集内。值得注意的是，我们引入的 consistency model 在精神上与当今工业界 GPU 中使用的模型相似（它们都使用不将同步限制在范围子集内的范围模型）。
 
-10.1.3 Temporal Coherence
+### 10.1.3 Temporal Coherence
 在本节中，我们将讨论一种基于自失效 (self-invalidation) 的方法来执行称为时间一致性 (temporal coherence) 的一致性 [30]。关键思想是每个 reader 在称为租约 (lease) 的有限时间段内引入一个缓存块，在这个时间段结束时，该块将自失效。我们讨论了时间一致性的两种变体：(1) 一种强制 SWMR 的 consistency-agnostic 的变体，在这种变体中，writer stall 直到块的所有租约到期； (2) 一种更有效的 consistency-directed 变体，它直接强制执行 relaxed consistency model，其中 FENCE stall，而不是 writer stall。对于以下讨论，我们假设共享缓存（L2）是 inclusive 的：共享 L2 中不存在的块意味着它不存在于任何本地 L1 中。我们还假设 L1 使用 write-through/no write-allocate 策略：写入直接写入 L2（直写），写入 L1 中不存在的块不会在 L1 中分配块L1（非写分配）。
 
 Consistency-agnostic Temporal Coherence
@@ -260,13 +262,13 @@ Release Consistency-directed Coherence: Summary
 
 因此，GPU 和异构内存模型是否必须涉及范围是一个复杂的可编程性与性能权衡。
 
-10.2 比 GPU 更多的异构性
+## 10.2 比 GPU 更多的异构性
 TODO
 
-10.3 进一步阅读
+## 10.3 进一步阅读
 TODO
 
-10.4 参考文献
+## 10.4 参考文献
 [1] The AMBA CHI Specification. AMBA 246
 
 [2] The CCIX Consortium. CCIX 246
