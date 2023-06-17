@@ -39,9 +39,21 @@
 
 举个例子，一份操作性的 SC 规范 (operational SC specification)，类似于第 3.6 章 中描述的朴素的 SC 实现 (the switch)。除了可观察的动作（stores、loads 和返回值）之外，该模型还使用内部状态（内存）来约束 loads 可以读取的值。
 
-操作性规范的工作方式如下。（假设每个核心都有一个程序计数器，指向下一条要取的指令。）
+操作性规范的工作方式如下。（假设每个核心都有一个程序计数器，指向下一条要取得的指令。）
 
-* Step 1: *Fetch*. 
-* Step 2: *Issue from the pipeline*.
-* Step 3: *Atomicmemorysystem*.
-* Step 4: *Return to the pipeline*.
+* Step 1: *Fetch*. 其中一个处理器核心被非确定性地选中；该核心取得它的下一条指令，并将其插入局部指令队列。
+* Step 2: *Issue from the pipeline*. 再一次地，一个核心被非确定性地选中；该核心从其指令队列中解码下一条指令。如果是内存指令，则流水线会发出 read-request (for a load) 或 write-request (for a store)，并阻塞。
+* Step 3: *Atomic memory system*. 收到 read-request 后，内存系统会读取内存中的相应位置，并以返回值响应；收到 write-request 后，内存系统会将其写入内存，并以 ack 响应。
+* Step 4: *Return to the pipeline*. 流水线在收到响应后解除阻塞。其中，store 会以 ack 响应，load 会以返回值响应。
+
+本规范产生的行为，是遵循程序顺序的输入动作 (load/store at Step 1)、和输出动作 (value returned for a load at Step 4) 构成的序列。很容易看出它的行为满足 SC。例如，在表 11.1 的消息传递示例中，以下序列是可观察的：
+
+<p align="center">«S1, S2, L1:r1=SET, L2:r2=NEW»</p>
+
+同样地，L1 重复一次或多次，直到它看到 SET 的值，这种序列也是可能的。但是，以下 SC 违例是不可观察的：
+
+<p align="center">«S1, S2, L1:r1=SET, L2:r2=0»</p>
+
+![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/c34fdb5a-ba51-4d39-b5c7-a46c0a7ded6b)
+
+**SC Operational Spec2: In-order pipeline + buffered memory**
