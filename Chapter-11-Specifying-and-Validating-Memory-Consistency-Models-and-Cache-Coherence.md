@@ -182,3 +182,15 @@ Memory consistency model 可能与使用库进行同步的高层程序员不太�
 ![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/dd842202-37c2-4ee8-88a6-b9f58a3330af)
 
 ### 11.2.2 Exploration
+
+给定一个内存模型的形式化规范，以及一个 litmus test，我们能否自动探索对于这个 litmus test，该内存模型所有可能的行为？幸运的是，有工具可以做到这一点。直觉上，一旦内存模型被形式化，无论是公理性地、还是操作性的，就可以详尽地枚举 litmus test 的每一个可能的计划表 (schedule)，并且对于每个这样的执行，使用数学公理（在公理性的情况下）或执行状态机（在操作性的情况下）来确定执行的输出（loads 的返回值）。
+
+**Tool support**
+
+回想一下，*herd* 工具提供了一种语言来以数学的方式表达 consistency models；该工具还有一个内置模拟器，用于探索 litmus tests 的行为。*ppcmem* 工具 (<https://www.cl.cam.ac.uk/~pes20/ppcmem/help.html>) 可以做类似的事情，但专用于 POWER 和 ARM 的内存模型，而 *CppMem* 工具 (<http://svrpes20-cppmem.cl.cam.ac.uk/cppmem/>) 面向 C/C++ 语言级内存模型。就操作性模型而言，*RMEM* 工具 (<https://www.cl.cam.ac.uk/~sf502/regressions/rmem/>) 具有针对 ARM（多个变体）、POWER（多个变体）、x86-TSO 和 RISC-V 的内置操作性模型，还允许探索它们的行为。
+
+如何生成 litmus tests？它们当然可以手动生成，以测试任何有趣的内存模型特性或同步场景。此外，也有工具支持。Litmus tests 可以通过测试生成器随机生成 [14, 15]。在给定测试形状（程序顺序关系和共享内存相关性）的情况下，diy 工具 (<http://diy.inria.fr/doc/gen.html>) 可以帮助生成 litmus test。最后，litmusttestgen (<https://github.com/nvlabs/litmustestgen>) 是一种更加自动化的方法，可以为公理性地表达的内存模型规范生成一组全面的 litmus tests。
+
+虽然 litmus tests 是传达关于内存模型的直觉的好方法，但它们通常不能作为内存模型的完整规范，因为它们留下了一些未指定的潜在行为（那些未包含在测试中的行为）。但如果有足够数量的测试，以及内存模型 (with missing pieces) 的句法模板 (syntactic template)，那么 MemSynth (<http://memsynth.uwplse.org/>) 展示了如何合成满足 litmus tests 的完整内存模型。
+
+## 11.3 Validating Implementations
