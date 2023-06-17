@@ -17,7 +17,7 @@
 
 **Coherence protocols: Observable actions and behavior**
 
-回想一下，处理器核心流水线与 coherence protocol 交互，以共同实现所需的 memory consistency model。因此，coherence protocol 的“用户”是与其交互的流水线，具体通过以下两个输入操作：(1) 程序中每个 load 的 read-request；(2) 程序中每个 store 的 write-request。Coherence protocol 的输出动作是：(1) read-return，为每个 read-request 返回一个值；(2) write-return，简单地对 write-request 进行确认 (acknowledge)。（流水线必须知道一个 write 何时完成。）这些可观察的动作的序列，代表了 coherence protocol 的外部的可观察行为。
+回想一下，处理器核心流水线与 coherence protocol 交互，以共同实现所需的 memory consistency model。因此，coherence protocol 的“用户”是与其交互的流水线，具体通过以下两个输入动作：(1) 程序中每个 load 的 read-request；(2) 程序中每个 store 的 write-request。Coherence protocol 的输出动作是：(1) read-return，为每个 read-request 返回一个值；(2) write-return，简单地对 write-request 进行确认 (acknowledge)。（流水线必须知道一个 write 何时完成。）这些可观察的动作的序列，代表了 coherence protocol 的外部的可观察行为。
 
 重要的是，要注意 coherence protocol 与 consistency model 中，可观察的内容之间的区别。在 coherence protocol 中，一个 read-request 或 write-request 返回的瞬间是可观察的。然而，对于 consistency model，一个 load 或 store 返回的瞬间是不可观察的，只有 loads 返回的值是可观察的。
 
@@ -36,3 +36,12 @@
 在下文中，我们将描述 sequential consistency (SC) 的两种操作性模型。两种模型具有相同的流水线组件，但它们的内存系统组件不同。前者指定了一个 consistency-agnostic coherence protocol，而后者指定了一个 consistency-directed coherence protocol。这将使我们能够操作性地描述两者之间的差异。
 
 **SC Operational Spec1: In-order pipeline + atomic memory**
+
+举个例子，一份操作性的 SC 规范 (operational SC specification)，类似于第 3.6 章 中描述的朴素的 SC 实现 (the switch)。除了可观察的动作（stores、loads 和返回值）之外，该模型还使用内部状态（内存）来约束 loads 可以读取的值。
+
+操作性规范的工作方式如下。（假设每个核心都有一个程序计数器，指向下一条要取的指令。）
+
+* Step 1: *Fetch*. 
+* Step 2: *Issue from the pipeline*.
+* Step 3: *Atomicmemorysystem*.
+* Step 4: *Return to the pipeline*.
