@@ -96,3 +96,26 @@
 操作性模型可以直接用任何用于表达状态机的语言来表达，例如 Murphi (<http://mclab.di.uniroma1.it/site/index.php/software/18-cmurphi>) 或 TLA (<https://lamport.azurewebsites.net/tla/tla.html>)。特别地，书中的每个 coherence protocol 表都可以很容易地表示为状态机。
 
 ### 11.1.2 Axiomatic Specification
+
+公理性的规范 (axiomatic specification) 是一种更抽象的、指定并发系统行为的方法，它利用了由可观察的动作（以及这些动作之间的关系）组成的数学公理，来约束允许行为的集合。
+
+**Specifying consistency models axiomatically**
+
+我们在前面的章节中用来描述 SC、TSO 和 XC 内存模型的形式化方法 (formalism) 对应于公理法 (axiomatic method)。回想一下，形式化方法由以下组件组成。
+
+* *Observable actions*: 这些是指 loads、stores 和 loads 的返回值。
+* *Relations*: 程序顺序 (program order) 关系被定义为每个核心的总序 (total order)，代表了每个核心中 loads 和 stores 出现的顺序。全局内存顺序 (global memory order) 被定义为所有核心的内存操作的总序。
+* *Axioms*: 有两类公理，*安全性公理 (safety axiom)* 和*活跃性公理 (liveness axiom)*，分别指定安全属性和活跃属性。对于 SC，存在三个安全性公理：(1) preserved program order axiom: the global memory order respects program order of each core; (2) load value axiom: the load gets the value written by the most recent store before it in global memory order; (3) the atomicity axiom: the load and store of an RMW instruction occur consecutively in global memory order. 除了这些安全性公理之外，还有一个活跃性公理，它指出 no memory operations must be preceded by an infinite sequence of other memory operations; 不正式地来说，这意味着内存操作最终必须执行，不能无限期地延迟。
+
+>译者注：为防止原意失真，本文不对公理进行翻译。
+
+对于任意可观察动作的序列，如果我们能够构造一个遵循上述公理的全局内存顺序，那么它就被称为该内存模型的一个合法行为。
+
+**Specifying coherence protocols axiomatically**
+
+我们之前看到了如何操作性地指定 coherence protocols。在这里，我们将看到如何在更抽象的层次上、公理性地指定它们，这对于验证 (verification) 很有用。具体来说，我们专注于指定一份满足可线性化性的 consistency-agnostic coherence 协议。（Consistency-directed coherence 协议的指定方式与 consistency models 的指定方式类似，同样可以被公理化地指定。）回想一下，可线性化性比 SC 更强，例如，它不允许表 11.2 中所示的动作顺序。因此，本规范在 SC 之上添加了一个附加公理来约束此类行为。
+
+* *Observable actions*:
+* *Internal action*:
+*  *Relations*:
+*  *Axioms*:
