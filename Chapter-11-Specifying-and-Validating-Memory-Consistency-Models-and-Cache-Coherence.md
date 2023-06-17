@@ -57,3 +57,16 @@
 ![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/c34fdb5a-ba51-4d39-b5c7-a46c0a7ded6b)
 
 **SC Operational Spec2: In-order pipeline + buffered memory**
+
+现在，让我们来考虑另一个 SC 操作性模型 (SC operational model)。其中，原来的原子内存，现在被添加了一个全局 FIFO 存储队列 (global FIFO store queue) 作为前端 (frontend)，以形成一个缓冲内存系统 (buffered memory system)。存储队列中的每个条目都包含地址、要存储的值、以及发射 write request 的 core ID。缓冲内存系统使用两种类型的 acks 来响应 write request：第一种 ack 表示请求已插入写入队列，另一种 late-ack 表示请求已真正写入内存。更具体地来说，缓冲内存系统的工作方式如下。（Step 1 和 4 与之前的规范相同，因此省略。）
+
+* Step 2': *Issue from the pipeline*. 一个核心被非确定性地选中；该核心从其指令队列中解码下一条指令。如果是 store 指令，则流水线会发出 write-request，并阻塞；如果是 load 指令，则流水线会等待，直到最新的 write 被 late-acked，然后才发出 read-request，并阻塞。
+* Step 3': *Buffered memory system*. 收到 write-request 后，缓冲内存系统将其插入全局存储队列并使用 ack 响应流水线。（当 write 最终被写入内存时，late-ack 被发送到发起 write 的处理器核心。）在收到 read-request 后，从内存中读取值并返回到流水线。
+
+尽管有缓冲，但该模型产生的行为满足 SC。回到表 11.1 所示的例子：
+
+<p align="center">«S1, S2, L1:r1=SET, L2:r2=0»</p>
+
+上面的 SC 违例是不可观察的，因为全局存储队列是一个 FIFO，因此将 stores 提交到内存并不会违反 per-core 的程序顺序。
+
+**Consistency-agnostic vs. Consistency-directed coherence**
