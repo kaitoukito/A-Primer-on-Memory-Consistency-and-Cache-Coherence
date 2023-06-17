@@ -7,6 +7,8 @@
 
 我们所说的行为 (behavior) 是什么意思呢？是说，系统通过一组动作 (actions) 与其用户（或环境）交互：(1) *输入动作*：从用户到系统的动作；(2) *内部动作*：系统内部发生的动作；(3) *输出动作*：从系统到用户的动作。其中，只有输入和输出动作对用户是可见的，而内部动作不是。因此，一系列（可观察的）输入和输出动作定义了系统的行为。我们感兴趣的是两类行为属性：*安全属性 (safety property)* 和*活跃属性 (liveness property)*。
 
+>译者注：我们将 “behavior” 翻译为“行为”，将 “action” 翻译为“动作”。
+
 安全属性断言坏事不应该发生，即，它指定了哪些可观察动作的序列是合法的。对于并发系统，由于不确定性，通常有多个合法序列。然而，安全属性不足以完全指定一个系统。考虑一个系统，它接受了一个输入动作并简单地 halts 了；尽管它没有表现出任何不良情况，但这样的系统显然没有用。这就是为什么规范还应当包括活跃属性，它断言好事最终一定会发生。
 
 在我们进一步解释如何形式化指定行为之前，让我们首先考虑一下 consistency models 和 coherence protocols 的可观察动作是什么。
@@ -115,7 +117,30 @@
 
 我们之前看到了如何操作性地指定 coherence protocols。在这里，我们将看到如何在更抽象的层次上、公理性地指定它们，这对于验证 (verification) 很有用。具体来说，我们专注于指定一份满足可线性化性的 consistency-agnostic coherence 协议。（Consistency-directed coherence 协议的指定方式与 consistency models 的指定方式类似，同样可以被公理化地指定。）回想一下，可线性化性比 SC 更强，例如，它不允许表 11.2 中所示的动作顺序。因此，本规范在 SC 之上添加了一个附加公理来约束此类行为。
 
-* *Observable actions*:
-* *Internal action*:
-*  *Relations*:
-*  *Axioms*:
+* *Observable actions*: 因为我们是在指定一个 coherence protocol，所以相关的动作是 read-request、read-return、write-request、以及 write-return 事件（处理器流水线看到的 coherence protocol 接口）。
+* *Internal action*: 除了可观察的动作之外，我们还添加了两个内部动作，read-perform 和 write-perform，代表 read 或 write 生效的瞬间。
+*  *Relations*: 与 SC 类似，全局内存顺序被定义为所有核心的 read-perform 和 write-perform 事件的总序。
+*  *Axioms*: 除了与 SC 相关联的三个安全性公理之外，还有第四个公理，表明 read 或 write 必须在其调用和响应之间执行；更正式地来说，a write-perform (read-perform) action must appear in between the write-request (read-request) and write-return (read-return) actions in the global memory order. 最后，就像在 SC 中一样，有一个活跃性公理，表明任何 read 或 write 请求最终都必须返回。
+
+**Specifying implementations axiomatically**
+
+我们之前看到了，如何通过在基本的操作性规范中扩展内部状态和动作，来自然地、操作性地表达实现（例如，coherence protocol 的实现）。以类似的方式，也可以通过在基本公理性规范中进行扩展，来公理化地表达实现。在本节中，我们将重点关注如何按照 Lustig et al. [20] 的方式来公理性地指定处理器核心流水线。
+
+回想一下公理性规范的抽象本质，其中 load/store 被建模为单个瞬时动作。不过，我们现在的目标有所不同。我们不是为了指定正确性，相反，我们的目标是忠实地模拟一个真实的处理器核心，其中每个 load 或 store 都经过多个流水级。因此，单个 load 或 store 动作现在被扩展为多个内部的流水线子操作 (sub-actions)，每个子操作代表一个流水级。
+
+例如，让我们考虑一下经典的五级流水线。在这里，一个 load 被分成五个子动作：fetch、decode、execute、memory 和 writeback。一个 store 被分成七个子动作：fetch、decode、execute、memory、writeback、exit-store-buffer 和 memory-write。（“Memory” 是指流水线中的内存阶段，而 “memory-write” 是指将值实际写入内存的子动作。）
+
+回想一下，公理性的 consistency 规范的一个关键组件是 preserved program order (ppo) axiom，它要求程序顺序必须保留在全局内存顺序中。类似于 ppo，一个想法是使用 *pipeline ordering axioms* 来指定微架构上的 happens-before 关系，即，指定流水线是否保留不同指令的子动作之间的顺序。同样地，理解 ppo 和 pipeline ordering axioms 之间的细微差别很重要。前者的目标是指定正确性，而后者的目标是忠实地建模流水线。事实上，流水线的实现是否遵守 ppo 公理（对于预期的 consistency model）是一个重要的验证 (validation) 问题，我们将在下一节中解决。
+
+对于五级流水线，pipeline ordering axioms 如下。
+
+* *Fetch honors program order*. If instruction i<sub>1</sub> occurs before i<sub>2</sub> in program order (po), then the fetch of i<sub>1</sub> happens before i<sub>2</sub>.
+  * That is: i<sub>1</sub> $\stackrel{po}{\longrightarrow}$ i<sub>2</sub> $\Longrightarrow$ i<sub>1</sub>.fetch $\longrightarrow$ i<sub>2</sub>.fetch
+* *Decode is in order*. If fetch of i<sub>1</sub> happens before i<sub>2</sub>, then decode of i<sub>1</sub> happens before i<sub>2</sub>.
+  * That is: i<sub>1</sub>.fetch $\longrightarrow$ i<sub>2</sub>.fetch $\Longrightarrow$ i<sub>1</sub>.decode $\longrightarrow$ i<sub>2</sub>.decode
+* In a similar vein, execute, memory and writeback stages preserve ordering (elided).
+* *FIFO store buffer*. If writeback of store i<sub>1</sub> happens before that of store i<sub>2</sub>, then i<sub>1</sub> exits the store buffer before i<sub>2</sub>.
+  * That is: i<sub>1</sub>.writeback $\longrightarrow$ i<sub>2</sub>.writeback $\Longrightarrow$ i<sub>1</sub>.exits-store-buffer $\longrightarrow$ i<sub>2</sub>.exits-store-buffer
+* *Ordered writes*. If i<sub>1</sub> exits the store buffer before i<sub>2</sub>, then i<sub>1</sub> writes to memory before i<sub>2</sub>.
+  * That is: i<sub>1</sub>.exits-store-buffer $\longrightarrow$ i<sub>2</sub>.exits-store-buffer $\Longrightarrow$ i<sub>1</sub>.memory-write $\longrightarrow$ i<sub>2</sub>.memory-write
+
