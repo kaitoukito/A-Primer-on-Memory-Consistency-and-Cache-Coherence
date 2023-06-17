@@ -124,7 +124,7 @@
 
 **Specifying implementations axiomatically**
 
-我们之前看到了，如何通过在基本的操作性规范中扩展内部状态和动作，来自然地、操作性地表达实现（例如，coherence protocol 的实现）。以类似的方式，也可以通过在基本公理性规范中进行扩展，来公理化地表达实现。在本节中，我们将重点关注如何按照 Lustig et al. [20] 的方式来公理性地指定处理器核心流水线。
+我们之前看到了，如何通过扩展基本的操作性规范的内部状态和动作，来自然地、操作性地表达实现（例如，coherence protocol 的实现）。以类似的方式，也可以通过扩展基本的公理性规范，来公理化地表达实现。在本节中，我们将重点关注如何按照 Lustig et al. [20] 的方式来公理性地指定处理器核心流水线。
 
 回想一下公理性规范的抽象本质，其中 load/store 被建模为单个瞬时动作。不过，我们现在的目标有所不同。我们不是为了指定正确性，相反，我们的目标是忠实地模拟一个真实的处理器核心，其中每个 load 或 store 都经过多个流水级。因此，单个 load 或 store 动作现在被扩展为多个内部的流水线子操作 (sub-actions)，每个子操作代表一个流水级。
 
@@ -144,3 +144,41 @@
 * *Ordered writes*. If i<sub>1</sub> exits the store buffer before i<sub>2</sub>, then i<sub>1</sub> writes to memory before i<sub>2</sub>.
   * That is: i<sub>1</sub>.exits-store-buffer $\longrightarrow$ i<sub>2</sub>.exits-store-buffer $\Longrightarrow$ i<sub>1</sub>.memory-write $\longrightarrow$ i<sub>2</sub>.memory-write
 
+最后，load value axiom 指定了一些约束，这些约束限制了 load 可以从同一地址的 store 中读取哪些值。
+
+* *Load value axiom*. If a store i<sub>1</sub> writes to memory before load i<sub>2</sub>’s memory stage (and there are no other memorywrites in the middle from other stores), then i<sub>2</sub> reads the value written by i<sub>1</sub>.
+
+遵守上述公理的任何流水线动作序列（以及 load 的返回值）都是合法行为。为了更好地理解这一点，请考虑表 11.3 中显示的消息传递示例。当 L1 看到新值 SET 时，L2 能看到旧值 0 吗？如果能够构建满足上述公理的流水线动作的全局序列，则五级流水线将允许此行为。如果不能，即，如果约束形成了一个环，则不允许此行为。让我们尝试构建一个全局序列。
+
+* S1.memory-write $\longrightarrow$ S2.memory-write (the pipeline ordering axioms ensure that S1 writes to memory before S2).
+* S2.memory-write $\longrightarrow$ L1.memory (S2 has to be written to memory before L1’s memory stage—only then, will L1 be able to read from S2).
+* L1.memory $\longrightarrow$ L2.memory (the pipeline ordering axioms ensure that L1 performs its memory stage before L2).
+* L2:memory $\longrightarrow$ S1:memory-write (if L2 must read the old value, and not the one produced by S1, its memory stage must have happened before S1’s memory write).
+
+![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/e0604d9f-d626-4280-a14d-d8e236f7be00)
+
+正如我们所看到的，上面列出的约束是不可能满足的，因为它会形成一个环。因此，对于这个例子，五级流水线不允许这种行为。
+
+在上面的讨论中，我们没有明确地对 caches 或 cache coherence 建模。Manerkar et al. [24] 展示了如何扩展流水线的公理性规范，来建模 coherence protocol/流水线交互。
+
+总之，我们看到了如何公理性地指定流水线的实现。建模实现的主要好处是可以验证它们。在第 11.3.1 节中，我们将看到如何根据实现的公理性模型的 consistency 规范，来验证它。
+
+**Tool support**
+
+*Alloy* (<http://alloy.mit.edu>) 或 *Cat* 等规范语言 (specification languages)，在与 *Herd* 工具 (<http://diy.inria.fr/herd/>) 相关联后，可用于表达 consistency models 的公理性规范。 $\mu$-spec 领域特定语言 (domain specific language) 允许公理性地指定流水线和 coherence protocol 的实现 (<http://check.cs.princeton.edu/#tools>)。
+
+## 11.2 Exploring The Behavior of Memory Consistency Models
+
+因为 consistency models 定义了共享内存的行为，所以对于程序员和 middleware 的编写者（例如，编译器编写者和内核开发人员）而言，了解内存模型允许哪些行为以及不允许哪些行为是至关重要的。通常，memory consistency models 由处理器供应商以白话文的形式指定，这通常是模棱两可的 [1]。形式化地指定的 memory consistency model 不仅需要是明确的，而且还需要可以自动探索行为。但在深入研究如何进行这种探索之前，让我们简要讨论一下*石蕊测试 (litmus tests)*，它们是揭示内存模型属性的简单程序。
+
+### 11.2.1 Litmus Tests
+
+Memory consistency model 可能与使用库进行同步的高层程序员不太相关。然而，它对于开发同步结构的底层程序员很重要，无论是实现语言级同步的编译器编写者、还是开发内核级同步的内核编写者、抑或是开发无锁数据结构的应用程序程序员。这样的底层程序员会想要知道内存模型表现出的行为，以便他们可以为他们手工编写的同步场景获得所期望的行为。Litmus tests 是抽象同步场景的简单多线程代码序列；因此，内存模型在这些测试中表现出的行为对底层程序员具有指导意义。例如，它们可能会揭示是否需要特定的 FENCE 才能获得所期望的行为。这些 litmus tests 也会用于处理器供应商的手册中，以解释 memory consistency model 的属性。
+
+**Examples.**
+
+回想一下，我们在前面的章节中使用过这样的 litmus tests，来解释内存模型的行为。例如，表 3.3 被称为 Dekker’s litmus test，因为它抽象了 Dekker 的互斥算法中的同步场景；表 3.1 通常被称为 message passing test。考虑表 11.4 中显示的另一个例子，它被称为 “coherence” litmus test。如果一个执行 (execution) 导致 r1 读取 NEW 值、但 r2 读取旧值 0，则它违反了数据值不变量 (data-value invariant)，从而违反了 coherence litmus test。
+
+![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/dd842202-37c2-4ee8-88a6-b9f58a3330af)
+
+### 11.2.2 Exploration
