@@ -27,7 +27,7 @@
 
 一份操作性的规范 (operational specification) 使用参考实现 (reference implementation) 来描述系统的行为，通常以状态机的形式表示。参考实现展示的行为，即输入/输出动作的序列，*定义*了系统所有合法行为的集合。操作模型 (operational models) 通常使用内部状态和内部动作来约束系统的行为，从而确保安全性 (safety)。操作模型的活跃性 (liveness) 取决于状态变化最终必须发生的事实。通常，活跃性是在外部（在状态机规范之外）表达的，它会使用以*时间逻辑 (temporal logic)* [31] 编写的数学公理。
 
->译者注：我们将 "temporal logic" 翻译为“时间逻辑”，以区别于通常被翻译为“时序逻辑”的 "sequential logic"。
+>译者注：我们将 “temporal logic” 翻译为“时间逻辑”，以区别于通常被翻译为“时序逻辑”的 “sequential logic”。
 
 **Specifying consistency models and coherence protocols operationally**
 
@@ -60,8 +60,8 @@
 
 现在，让我们来考虑另一个 SC 操作性模型 (SC operational model)。其中，原来的原子内存，现在被添加了一个全局 FIFO 存储队列 (global FIFO store queue) 作为前端 (frontend)，以形成一个缓冲内存系统 (buffered memory system)。存储队列中的每个条目都包含地址、要存储的值、以及发射 write request 的 core ID。缓冲内存系统使用两种类型的 acks 来响应 write request：第一种 ack 表示请求已插入写入队列，另一种 late-ack 表示请求已真正写入内存。更具体地来说，缓冲内存系统的工作方式如下。（Step 1 和 4 与之前的规范相同，因此省略。）
 
-* Step 2': *Issue from the pipeline*. 一个核心被非确定性地选中；该核心从其指令队列中解码下一条指令。如果是 store 指令，则流水线会发出 write-request，并阻塞；如果是 load 指令，则流水线会等待，直到最新的 write 被 late-acked，然后才发出 read-request，并阻塞。
-* Step 3': *Buffered memory system*. 收到 write-request 后，缓冲内存系统将其插入全局存储队列并使用 ack 响应流水线。（当 write 最终被写入内存时，late-ack 被发送到发起 write 的处理器核心。）在收到 read-request 后，从内存中读取值并返回到流水线。
+* Step 2’: *Issue from the pipeline*. 一个核心被非确定性地选中；该核心从其指令队列中解码下一条指令。如果是 store 指令，则流水线会发出 write-request，并阻塞；如果是 load 指令，则流水线会等待，直到最新的 write 被 late-acked，然后才发出 read-request，并阻塞。
+* Step 3’: *Buffered memory system*. 收到 write-request 后，缓冲内存系统将其插入全局存储队列并使用 ack 响应流水线。（当 write 最终被写入内存时，late-ack 被发送到发起 write 的处理器核心。）在收到 read-request 后，从内存中读取值并返回到流水线。
 
 尽管有缓冲，但该模型产生的行为满足 SC。回到表 11.1 所示的例子：
 
@@ -70,3 +70,29 @@
 上面的 SC 违例是不可观察的，因为全局存储队列是一个 FIFO，因此将 stores 提交到内存并不会违反 per-core 的程序顺序。
 
 **Consistency-agnostic vs. Consistency-directed coherence**
+
+回想一下，在第 2 章中，我们将 coherence 接口分为两类：consistency-agnostic 和 consistency-directed。原子内存系统 (Step 3 from Spec1) 指定了一种 consistency-agnostic 协议，因为 writes 是同步发生的。而缓冲内存系统 (Step 3’) 是 consistency-directed 协议规范的一个示例，因为 writes 是异步的。（比后者的更激进的规范也是可能的 [3]。）尽管这两种规范都与顺序流水线相结合，以强制实施 SC，但这两种协议表现出了不同的行为。考虑表 11.2 中所示的外部可观察的动作的序列。
+
+<p align="center">«write-request(X,1), write-return(X,1),read-request(X), read-return(X,0)»</p>
+
+![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/bfd5c459-eeba-4129-bff4-fb6d12223692)
+
+在原子内存系统中，不能观察到上述序列，尽管该序列不违反 SC。这是因为，原子内存规范确保 write 在其调用 (invocation, t0) 和响应 (response, t1) 之间，已经被真正地写入了内存，从而确保 read 将返回 1 而不是 0。但是，缓冲内存规范允许此行为。因为，当 read 发生时，对 X 的 write 可以缓冲在全局队列中，从而允许 read 看到 0。
+
+原子内存系统 (or consistency-agnostic coherence) 可以使用比 SC 更强的正确性条件进行建模，称为*可线性化性 (linearizability)* [16]。除了 SC 规则之外，可线性化性要求 write 必须在其调用和响应之间实时生效。可线性化性是一个*可组合 (composable)* 的属性：一个对象是可线性化的，当且仅当其组件是可线性化的。回到我们的场景，一个内存系统是可线性化的，当且仅当它的每个位置都是单独可线性化的。因此，可以在每个内存位置的基础上，指定 consistency-agnostic coherence，即每个内存位置的可线性化性。这也解释了为什么可以使用诸如分布式目录，强制实施各个单独位置的 coherence。
+
+相反，SC 不是一个可组合的属性。即使所有内存位置单独地满足 SC（并且流水线不对内存操作进行重新排序），也不意味着整个系统就是 SC。回想一下，在第 2 章（侧边栏）中，我们研究了 coherence 的 consistency-like 的定义，其中，coherence 被定义为每个内存位置基础上的 SC。然而，这种 coherence 的定义并没有完全指定 coherence 协议。（因为可线性化性强于 SC，所以 per-location SC 不够强、以指定 consistency-agnostic coherence。因为 SC 不是可组合的，所以 per-location SC 也不够强、以指定 consistency-directed coherence。）然而，per-memory location SC 是一种对于 coherence 有用的安全性检查。回想一下，consistency-agnostic protocol 满足 per-memory location 的可线性化性。因此，任何 consistency-agnostic protocol，必然会满足 per-memory location SC。即使对于 consistency-directed coherence 协议，per-location SC 也是一种有用的安全性检查，因为大多数 consistency models，在 per-location 的基础上，明确要求了 SC（并将其称为 “coherence” 公理！[4]）。
+
+总之，consistency-agnostic coherence 暴露了一个原子（可线性化的）内存接口，而 consistency-directed coherence 暴露了 target consistency model 的一个接口。
+
+**Specifying implementations operationally**
+
+到目前为止，我们看到了如何操作性地指定 consistency models 和 coherence protocols。操作法的好处之一是，可以通过使用特定于实现的内部状态和动作，改进基本规范，来自然地对较低级别的实现（例如，详细的 coherence protocols）进行建模。
+
+例如，让我们将缓存添加到上述 SC 操作性规范 (Spec1) 中，每个处理器现在都拥有一个局部缓存及其关联的 coherence controller。来自流水线的每个读/写请求，现在首先发送到局部缓存控制器，以检查 hit 还是 miss。如果 miss，则缓存控制器会通过 GetS 或 GetM 请求联系目录/内存控制器（正如我们在前面章节中看到的关于 coherence protocols 的内容）。确切的状态转换自然地取决于所采用的 coherence protocol 指定的细节，但这里的要点是，前面以表格格式讨论的 coherence protocols，本质上还是通过改进内存系统 (Step 3 or Step 3’) 获得的操作性模型。同样，可以改进流水线规范，以对额外的流水线阶段进行建模，从而忠实地对流水线的实现进行建模。
+
+**Tool support**
+
+操作性模型可以直接用任何用于表达状态机的语言来表达，例如 Murphi (<http://mclab.di.uniroma1.it/site/index.php/software/18-cmurphi>) 或 TLA (<https://lamport.azurewebsites.net/tla/tla.html>)。特别地，书中的每个 coherence protocol 表都可以很容易地表示为状态机。
+
+### 11.1.2 Axiomatic Specification
