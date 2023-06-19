@@ -194,3 +194,61 @@ Memory consistency model 可能与使用库进行同步的高层程序员不太�
 虽然 litmus tests 是传达关于内存模型的直觉的好方法，但它们通常不能作为内存模型的完整规范，因为它们留下了一些未指定的潜在行为（那些未包含在测试中的行为）。但如果有足够数量的测试，以及内存模型 (with missing pieces) 的句法模板 (syntactic template)，那么 MemSynth (<http://memsynth.uwplse.org/>) 展示了如何合成满足 litmus tests 的完整内存模型。
 
 ## 11.3 Validating Implementations
+
+Memory consistency 的强制实施，会跨越多个子系统，包括处理器流水线、缓存、以及内存子系统。所有这些子系统必须相互合作，以强制实施所承诺的 memory consistency model。验证它们是否正确地这么做了，是本节的主题。
+
+我们的最终目标是，详尽地验证完整的实现是否满足所承诺的内存模型。但是，现代多处理器的绝对复杂性使这成为一个非常困难的问题。因此，存在各种验证 (validation) 技术，从形式化验证 (verification) 到非形式化测试 (test)。这本身就是一个巨大的话题，可能值得单独写一本书。在这里，我们浅尝了其中的一些技术，并提供了进一步研究的指导。
+
+### 11.3.1 Formal Methods
+
+在这个类别中，一个实现的形式化模型根据规范进行验证。我们根据规范和实现是以公理性的方式、还是以操作性的方式表达，来对这些方法进行分类。然后，我们通过考虑属于该类别的一两个技术示例，来解释每个类别。最后，我们以关于操作性方法与公理性方法的一些总结性思考，来结束本节。
+
+#### Operational Implementation against Axiomatic Specification
+
+**Manual proof**
+
+以操作性模型的形式给定一个实现，并且以公理性模型的形式给定其规范，则我们可以通过手动证明的方式，表明该实现满足规范中的每个公理。
+
+例如，考虑一个系统，其中处理器流水线按程序顺序呈现 loads 和 stores，并且 cache coherence protocol 可以确保 SWMR、以及数据值不变量 (data-value invariants)。Meixner 和 Sorin [26] 展示了，只要这样的系统满足每个 SC 公理，那么它就能强制实施 SC。
+
+有一个用于提出证明的强大模板 [30]，它遵循了 Lamport 的方法，完全地排序 (totally ordering) 了分布式系统的事件 [18]。这个想法是，为每个独立的动作（例如，在流水线中的 store 指令的一次 fetch）分配假设的时间戳，并导出存在因果关系的事件的时间戳（例如，由于 store 导致了 GetM，那么 GetM 请求获得了更高的时间戳）。在这样做的过程中，可以导出所有内存操作的全局顺序。然后检查每个 load 的值，以确定返回值是否与 load value axiom 一致 (consistent)。
+
+**Model checking**
+
+Coherence protocols 的操作性规范，通常使用模型检查器，针对公理不变量 (axiomatic invariants) 进行验证。模型检查器，例如 Murphi [12]，允许类似于前面章节中以表格格式描述的 coherence protocols，以领域特定语言表示。该语言还允许表达 SWMR 等公理。然后，模型检查器探索协议的整个状态空间，以确保不变量成立、或报告反例（违反不变量的状态序列）。然而，由于状态空间爆炸，这种显式状态的模型检查只能针对有限的实现模型（例如，两个或三个地址、值、以及处理器）进行。
+
+有许多方法可以对抗状态空间爆炸。符号模型检查器 (symbolic model checkers) [7]，使用逻辑来操纵状态的集合（而不是单个状态），从而实现模型的缩放。有界模型检查器 (bounded model checkers) [6]，通过仅在状态序列中寻找有限长度的反例，来对详尽性做出妥协。最后，完整证明的一种方法是，对有限系统进行详尽的模型检查，然后使用*参数化 (parameterization)* [11、17] 来概括任意数量的处理器、地址等。
+
+以下是如何使用 Murphi 对一个非平凡的 coherence protocol 进行模型检查的具体示例：(<https://github.com/icsa-caps/c3d-protocol>)。
+
+#### Operational Implementation against Operational Specification
+
+假设有两个状态机：Q（实现）和 S（规范）具有相同的可观察动作的集合。我们如何证明 Q 忠实地实现了 S？为了证明这一点，我们需要证明 Q 的所有行为（可观察动作的序列）都包含在 S 中。
+
+**Refinement**
+
+一种允许对 Q 和 S（而不是序列）中的状态对进行推理的程式化的证明技术称为 refinement [2]（也称为 simulation [27]）。关键思想是确定一个抽象函数 F（也称为 refinement mapping 或 simulation relation），它将实现中的每个可达状态映射到规范中的状态，就像这样：
+
+* initial states (q<sub>0</sub> $\in$ Q, s<sub>0</sub> $\in$ S) are part of the mapping. That is, F(q<sub>0</sub>) = s<sub>0</sub>;
+* the abstraction function preserves state transitions. That is, for every state transition in the implementation between two states q<sub>i</sub> and q<sub>j</sub> with some observable action a, i.e., q<sub>i</sub> $\stackrel{a}{\longrightarrow}$ q<sub>j</sub>, the abstraction function will lead to two states in the specification with the same observable action, i.e., F(q<sub>i</sub>) $\stackrel{a}{\longrightarrow}$ F(q<sub>j</sub>).
+
+例如，考虑一个包含缓存和全局内存的 cache coherent 系统，该系统使用基于原子总线的 MSI coherence protocol 来保持它是 coherent（实现）。回想一下，这个实现的整体状态包括所有缓存的状态（每个位置的值和 MSI 状态），以及全局内存的状态。我们可以展示，cache coherent 内存使用 refinement 来实现原子内存（规范）。为此，我们确定了一个抽象函数，将 cache coherent 内存的状态与原子内存的状态相关联。具体来说，一个给定位置的原子内存块的值由下式给出：(1) 如果该块处于 M 状态，则为该位置的缓存块的值；(2)否则，它与每个处于 S 状态的块、以及全局内存中的值相同。然后，证明 (proof) 将查看协议中所有可能的状态转换，以检查抽象函数是否成立。例如，考虑缓存块 X 的 S $\stackrel{Write(X, 1)}{\longrightarrow}$ M 转换，其初始值为 0。对于进入 M 状态的缓存块，抽象函数成立，因为它将缓存最新值 1。对于处于状态 S 的其他缓存块，抽象函数成立的前提是，MSI 协议正确地强制实施 SWMR、并无效化所有的这些块。
+
+因此，一个 refinement proof 不仅需要识别抽象函数，还需要对已实现系统中的状态转换进行后续推理；该过程可能会揭示其他需要证明的不变量（例如，上面揭示的 SMWR）。Kami 框架 [10] 使用 refinement proof 来表明，一个处理器的操作性规范、与 cache coherent 内存系统相结合的话，可以满足 SC。
+
+**Model checking**
+
+表明一个实现满足规范的一种方法是，用相同的输入动作序列并排运行两个状态机，并观察它们是否产生相同的输出动作。虽然这个简单的策略是合理的，但它可能并不总是成功。（当该方法说状态机是等价的时，它们肯定是等价的；但当该方法说它们不等价时，它们可能仍然是等价的。）这是因为并发系统固有的不确定性。有时，规范和实现可能表现出相同的行为，但具有不同的时间表。话虽如此，这仍然是一个非常有用的策略，尤其是当实现和规范在概念上相似时。Banks et al. [5] 采用这种策略来证明 cache coherence protocol 满足所承诺的 consistency model。
+
+#### Axiomatic Implementation Against Axiomatic Specification
+
+我们看到了如何公理性地指定实现（例如核心流水线的实现）。如何形式化地验证这样一个公理性模型是否满足 consistency model 的公理性规范（注1）呢？
+
+>原书作者注1：本节假设根据公理性规范进行验证。用一种类似的方法，根据操作性规范来验证一个实现的公理性模型、是可能的，尽管我们知道在这个类别中没有这样的提议。
+
+工作 [20, 21, 24] 中的 Check line 为此目的利用了详尽探索的想法。给定一个 litmus test，以及内存模型的公理性规范，我们在第 11.2 节中看到了如何在 litmus test 上详尽地探索内存模型的所有行为。对于实现的公理性规范，也可以进行这种详尽的探索。然后，可以将 litmus test 中的行为与抽象公理性模型中的行为进行比较。如果实现显示了更多的行为，则表示实现中存在错误。另一方面，如果实现显示的行为少于规范，则表明该实现是保守的。然后，对作为套件一部分的其他 litmus tests 重复相同的过程。
+
+上述方法的一个局限性是，验证仅对已探索的 litmus tests 是详尽无遗的。完整的验证需要探索所有可能的程序。PipeProof [22] 通过对程序的符号抽象进行归纳式证明来实现这一点，该程序允许对具有任意数量指令的程序以及所有可能的地址和值进行建模。
+
+#### Summary: Operational vs. Axiomatic
+
