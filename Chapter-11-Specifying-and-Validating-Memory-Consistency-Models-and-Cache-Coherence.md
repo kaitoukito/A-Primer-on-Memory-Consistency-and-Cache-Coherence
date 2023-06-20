@@ -252,3 +252,47 @@ Coherence protocols 的操作性规范，通常使用模型检查器，针对公
 
 #### Summary: Operational vs. Axiomatic
 
+一般来说，公理性规范是声明性的；他们描述了哪些行为是允许的，但没有完整描述这个系统是如何实现的。通常，它们更抽象，更容易用数学表达；因此，可以更快地探索它们的行为。另一方面，操作性模型更接近于实现，对架构师来说更直观；因此，可以说，操作性地对详细的实现进行建模是更容易的。回想一下，我们能够在前面的章节中以表格格式自然地描述相当复杂的 coherence protocols。总而言之，是走公理性的路线、还是走操作性的路线，这不是一个能够简单回答的问题。
+
+最后，重要的是，需要了解混合公理性/操作性模型也是可能的。例如，让我们考虑一个使用 coherence protocol 保持 cache coherent 的多处理器。除了操作性地描述 coherence protocol，还可以使用 SWMR 和数据值不变量来公理性地抽象这个协议。当想要将复杂的验证问题分解为更简单的问题时，这种方法可能很有吸引力。例如，当想要验证流水线和内存系统的组合是否正确地强制实施了 consistency model 时，独立验证 coherence protocol、然后通过 SMWR 来公理性地抽象它，可能是有意义的。
+
+### 11.3.2 TESTING
+
+形式化地证明实现满足规范，提供了很高的信心，即实现确实是正确的。然而，形式化验证并不是万灵药。原因有三。首先，形式化验证难以扩展。模型检查等自动技术可能无法处理复杂实现的庞大状态空间；另一方面，能够处理如此大的状态空间的技术并不是完全自动化的，对架构师来说并不容易。其次，正确地、形式化地指定一个实现并不简单，而且可能容易出错。第三，即使模型是准确的，它也可能是不完整的，因为模型可能没有考虑到实现的某些部分。这就是为什么彻底测试最终的实现是非常重要的。我们将测试分为两类：*离线测试 (offline testing)* 和*在线测试 (online testing)*。对于前者（也称为静态测试），在部署之前测试真实或模拟的多处理器是否存在 consistency 违例。对于后者，违例会在部署后的运行时检测到。
+
+#### Offline Testing
+
+这个想法是，在真实（或模拟）机器上运行测试程序，观察它们的行为，并验证它们。该方法提出了两个问题：如何生成测试程序？ 他们的行为如何得到验证？
+
+TSOtool [15] 是关于 memory consistency 测试的早期工作之一，它使用伪随机生成器来生成简短的测试程序。给定一个以前没见过的随机生成的程序，如何验证其观察的行为（reads 的返回值）？这是 TSOtool 解决的关键挑战。直觉上，这需要一个 *consistency checker*，它从观察中动态地重建全局顺序，并检查 consistency model 是否允许该顺序。虽然从 reads 的返回值重建全局顺序是一个 NP 完全问题，但 TSOtool 提出了一种以准确性换取性能的多项式算法（它可能会错过一些违例行为）。 MTraceCheck [19] 进一步改进了这个检查器。
+
+除了使用随机生成的程序，还可以使用 litmus tests（第 11.2.1 节）。使用 litmus tests 的好处是，一个测试套件已经可以用于大多数内存模型；此外，对于每个 litmus test，预期的行为都是已知的，这就不需要复杂的检查器来重建全局内存顺序。Litmus 工具 diy (<http://diy.inria.fr/doc/litmus.html>) 是使用此方法测试真实处理器的框架。
+
+虽然 litmus testing 和随机测试 (random testing) 在后硅 (post-silicon) 环境中有效，但在慢速模拟器环境中可能效果不佳。McVersi [14] 提出了一种基于遗传编程 (genetic-programming-based) 的方法，该方法利用模拟器环境的白盒特性来提出可能更快地揭示 consistency 违例的测试程序。
+
+#### Online Testing
+
+离线测试当然是有益的，但由于测试的基本限制，它可能无法发现一些错误。此外，即使离线测试没有遗漏任何错误，硬件瞬态错误和制造错误也可能在非人工环境中导致 consistency 违例。对于在线测试（也称为动态测试），它将硬件支持添加到多处理器以检测执行期间的此类违例。一种概念上直接的方法是，像在 TSOtool 中那样，在硬件中实现 consistency checker。然而，就内存（元数据）和通信开销而言，这种方案的简单实现将是不切实际的。Chen et al. [9] 提出了一种显著降低这些成本的方案，利用了并非所有内存操作都需要跟踪的事实（例如，不需要跟踪对局部变量的 loads 和 stores）。Meixner 和 Sorin [25] 提出了一种替代策略，将验证任务减少为验证两个不变量的任务：(a) 检查 cache coherence protocol 是否正确地强制实施了 SWMR；(b) 检查流水线是否与 coherence protocol 正确交互。值得注意的是，他们表明可以在硬件中有效地检查这两个不变量。
+
+## 11.4 HISTORY AND FURTHER READING
+
+TODO
+
+## 11.5 REFERENCES
+
+[1] Linux Kernel mailing list: Spin unlock optimization. https://lists.gt.net/engine?post=105365;list=linux
+
+[2] M. Abadi and L. Lamport. The existence of refinement mappings. Theoretical Computer Science, 82(2):253–284, 1991. DOI: 10.1109/lics.1988.5115
+
+[3] Y. Afek, G. M. Brown, and M. Merritt. Lazy caching. ACM Transactions on Programming Languages and Systems, 15(1):182–205, 1993. DOI: 10.1145/151646.151651
+
+[4] J. Alglave, L. Maranget, and M. Tautschnig. Herding cats: Modelling, simulation, testing, and data mining for weak memory. ACM Transactions on Programming Languages and Systems, 36(2):7:1–7:74, 2014. DOI: 10.1145/2627752
+
+[5] C. J. Banks, M. Elver, R. Hoffmann, S. Sarkar, P. Jackson, and V. Nagarajan. Verification of a lazy cache coherence protocol against a weak memory model. In Formal Methods in Computer Aided Design (FMCAD), pages 60–67, Vienna, Austria, October 2–6, 2017. DOI: 10.23919/fmcad.2017.8102242
+
+[6] A. Biere, A. Cimatti, E. M. Clarke, and Y. Zhu. Symbolic model checking without BDDs. In Tools and Algorithms for Construction and Analysis of Systems, 5th International Conference (TACAS), Held as Part of the Proc. of the European Joint Conferences on the Theory and Practice of Software (ETAPS), pages 193–207, Amsterdam, The Netherlands, March 22–28, 1999. DOI: 10.21236/ada360973
+
+[7] J. R. Burch, E. M. Clarke, K. L. McMillan, and D. L. Dill. Sequential circuit verification using symbolic model checking. In Proc. of the 27th ACM/IEEE Design Automation Conference, pages 46–51, Orlando, FL, June 24–28, 1990. DOI: 10.1109/dac.1990.114827
+
+[8] P. Chatterjee, H. Sivaraj, and G. Gopalakrishnan. Shared memory consistency protocol verification against weak memory models: Refinement via model-checking. In Proc. Computer Aided Verification, 14th International Conference (CAV), pages 123–136, Copenhagen, Denmark, July 27–31, 2002. DOI: 10.1007/3-540-45657-0_10
+
