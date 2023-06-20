@@ -106,7 +106,7 @@
 我们在前面的章节中用来描述 SC、TSO 和 XC 内存模型的形式化方法 (formalism) 对应于公理法 (axiomatic method)。回想一下，形式化方法由以下组件组成。
 
 * *Observable actions*: 这些是指 loads、stores 和 loads 的返回值。
-* *Relations*: 程序顺序 (program order) 关系被定义为每个核心的总序 (total order)，代表了每个核心中 loads 和 stores 出现的顺序。全局内存顺序 (global memory order) 被定义为所有核心的内存操作的总序。
+* *Relations*: 程序顺序 (program order) 关系被定义为每个核心的全序 (total order)，代表了每个核心中 loads 和 stores 出现的顺序。全局内存顺序 (global memory order) 被定义为所有核心的内存操作的全序。
 * *Axioms*: 有两类公理，*安全性公理 (safety axiom)* 和*活跃性公理 (liveness axiom)*，分别指定安全属性和活跃属性。对于 SC，存在三个安全性公理：(1) preserved program order axiom: the global memory order respects program order of each core; (2) load value axiom: the load gets the value written by the most recent store before it in global memory order; (3) the atomicity axiom: the load and store of an RMW instruction occur consecutively in global memory order. 除了这些安全性公理之外，还有一个活跃性公理，它指出 no memory operations must be preceded by an infinite sequence of other memory operations; 不正式地来说，这意味着内存操作最终必须执行，不能无限期地延迟。
 
 >译者注：为防止原意失真，本文不对公理进行翻译。
@@ -119,7 +119,7 @@
 
 * *Observable actions*: 因为我们是在指定一个 coherence protocol，所以相关的动作是 read-request、read-return、write-request、以及 write-return 事件（处理器流水线看到的 coherence protocol 接口）。
 * *Internal action*: 除了可观察的动作之外，我们还添加了两个内部动作，read-perform 和 write-perform，代表 read 或 write 生效的瞬间。
-*  *Relations*: 与 SC 类似，全局内存顺序被定义为所有核心的 read-perform 和 write-perform 事件的总序。
+*  *Relations*: 与 SC 类似，全局内存顺序被定义为所有核心的 read-perform 和 write-perform 事件的全序。
 *  *Axioms*: 除了与 SC 相关联的三个安全性公理之外，还有第四个公理，表明 read 或 write 必须在其调用和响应之间执行；更正式地来说，a write-perform (read-perform) action must appear in between the write-request (read-request) and write-return (read-return) actions in the global memory order. 最后，就像在 SC 中一样，有一个活跃性公理，表明任何 read 或 write 请求最终都必须返回。
 
 **Specifying implementations axiomatically**
