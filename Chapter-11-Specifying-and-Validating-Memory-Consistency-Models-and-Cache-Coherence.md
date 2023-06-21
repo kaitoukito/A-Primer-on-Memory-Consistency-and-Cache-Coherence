@@ -240,7 +240,7 @@ Coherence protocols 的操作性规范，通常使用模型检查器，针对公
 
 表明一个实现满足规范的一种方法是，用相同的输入动作序列并排运行两个状态机，并观察它们是否产生相同的输出动作。虽然这个简单的策略是合理的，但它可能并不总是成功。（当该方法说状态机是等价的时，它们肯定是等价的；但当该方法说它们不等价时，它们可能仍然是等价的。）这是因为并发系统固有的不确定性。有时，规范和实现可能表现出相同的行为，但具有不同的时间表。话虽如此，这仍然是一个非常有用的策略，尤其是当实现和规范在概念上相似时。Banks et al. [5] 采用这种策略来证明 cache coherence protocol 满足所承诺的 consistency model。
 
-#### Axiomatic Implementation Against Axiomatic Specification
+#### Axiomatic Implementation against Axiomatic Specification
 
 我们看到了如何公理性地指定实现（例如核心流水线的实现）。如何形式化地验证这样一个公理性模型是否满足 consistency model 的公理性规范（注1）呢？
 
