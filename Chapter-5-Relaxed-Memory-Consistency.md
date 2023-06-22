@@ -301,6 +301,25 @@ RMW。RISC-V 支持两种类型的 RMW：原子内存操作 (AMO) 和保留加�
 总结。总而言之，RVWMO 是一种结合了 XC 和 RC 方面的最新宽松内存模型。对于详细的提议和正式规范，读者可以参考 RISC-V 规范 [31]。
 
 ### 5.6.2 IBM POWER
+
+### 5.6.2 IBM POWER
+
+IBM Power 实现了 Power 内存模型 [23]（特别参见 Book II 的第 1 章、第 4.4 节，以及附录 B）。我们试图在这里给出 Power 内存模型的要点，但我们建议读者参阅 Power 手册以获得明确的介绍，尤其是对于 Power 编程。我们不为 SC 提供像表 5.5 这样的排序表，因为我们不确定是否可以正确指定所有条目。我们只讨论正常的可缓存内存（启用“Memory Coherence”、禁用“Write Through Required”，以及禁用“Caching Inhibited”），而不是 I/O 空间等。PowerPC [24] 代表当前 Power 模型的早期版本。在阅读本入门书的第一遍时，读者可能希望浏览或跳过本节；该内存模型比本入门书中迄今为止介绍的模型要复杂得多。
+
+Power 提供了一个宽松的模型，表面上与 XC 类似，但有以下重要区别。
+
+First, stores in Power are performed *with respect to (w.r.t.) other cores*, not w.r.t. memory. A store by core C1 is “performed w.r.t.” core C2 when any loads by core C2 to the same address will see the newly stored value or a value from a later store, but not the previous value that was clobbered by the store. Power ensures that if core C1 uses FENCEs to order store S1 before S2 and before S3, then the three stores will be performed w.r.t. every other core Ci in the same order. In the absence of FENCEs, however, core C1’s store S1 may be performed w.r.t. core C2 but not yet performed w.r.t. to C3. Thus, Power is not guaranteed to create a total memory order (<m) as did XC.
+
+Second, some FENCEs in Power are defined to be *cumulative*. Let a core C2 execute some memory accesses X1, X2, ..., a FENCE, and then some memory accesses Y1, Y2,.... Let set X = {Xi} and set Y = {Yi}. (The Power manual calls these sets A and B, respectively.) Define cumulative to mean three things: (a) add to set X the memory accesses by *other* cores that are ordered before the FENCE (e.g., add core C1’s store S1 to X if S1 is performed w.r.t. core C2 before C2’s FENCE); (b) add to set Y the memory accesses by *other* cores that are ordered after the FENCE by data dependence, control dependence, or another FENCE; and (c) apply (a) recursively backward (e.g., for cores that have accesses previously ordered with core C1) and apply (b) recursively forward. (FENCEs in XC are also cumulative, but their cumulative behavior is automatically provided by XC’s total memory order, not by the FENCEs specifically.)
+
+Third, Power has three kinds of FENCEs (and more for I/O memory), whereas XC has only one FENCE.
+
+* SYNC or HWSYNC (“HW” means “heavy weight” and “SYNC” stands for “synchronization”) orders all accesses X before all accesses Y and is cumulative.
+* LWSYNC (“LW” means “light weight”) orders loads in X before loads in Y, orders loads in X before stores in Y, and orders stores in X before stores in Y. LWSYNC is cumulative. Note that LWSYNC does not order stores in X before loads in Y.
+* ISYNC (“I” means “instruction”) is sometimes used to order two loads from the same core, but it is not cumulative and, despite its name, it is not a FENCE like HWSYNC and LWSYNC, because it orders instructions and not memory accesses. For these reasons, we do not use ISYNC in our examples.
+
+Fourth, Power orders accesses in some cases even without FENCEs. For example, if load L1 obtains a value used to calculate an effective address of a subsequent load L2, then Power orders load L1 before load L2. Also, if load L1 obtains a value used to calculate an effective address or data value of a subsequent store S2, then Power orders load L1 before store S2.
+
 TODO
 
 ## 5.7 进一步阅读和商用宽松内存模型
