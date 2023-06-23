@@ -1,3 +1,5 @@
+# 第十一章：指定和验证 Memory Consistency model 和 Cache Coherence
+
 到目前为止，我们希望让您相信 consistency models 和 cache coherence protocols 是复杂而微妙的。在本章中，我们讨论了严格指定 consistency models 和 coherence protocols 的方法，并探索它们允许的行为。我们还讨论了指定其实现和验证其正确性的方法。
 
 我们首先简要概述指定并发系统的两种方法，操作法 (operational method) 和公理法 (axiomatic method)，并重点关注如何使用这些方法指定 consistency models 和 coherence protocols（第 11.1 节）。对于给定的形式化的 consistency 规范，我们将讨论如何自动探索其行为（第 11.2 节）。最后，我们将快速浏览如何验证 (validating) consistency 的实现，其中，同时涵盖了形式化方法和基于测试的方法（第 11.3 节）。
