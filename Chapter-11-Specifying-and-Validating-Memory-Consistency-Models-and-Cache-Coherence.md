@@ -1,4 +1,4 @@
-# 第十一章：指定和验证 Memory Consistency model 和 Cache Coherence
+# 第十一章：指定和验证 Memory Consistency models 和 Cache Coherence
 
 到目前为止，我们希望让您相信 consistency models 和 cache coherence protocols 是复杂而微妙的。在本章中，我们讨论了严格指定 consistency models 和 coherence protocols 的方法，并探索它们允许的行为。我们还讨论了指定其实现和验证其正确性的方法。
 
