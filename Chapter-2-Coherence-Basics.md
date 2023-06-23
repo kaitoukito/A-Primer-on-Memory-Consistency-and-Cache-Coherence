@@ -40,47 +40,58 @@
 
 ## 2.4 Consistency-agnostic coherence 不变量
 
-Coherence 协议必须满足哪些不变量才能使缓存不可见并呈现原子存储系统的抽象？
+Coherence 协议必须满足哪些不变量 (invariants) 才能使缓存不可见并呈现原子内存系统的抽象？
 
-在教科书和已发表的论文中出现了几种 coherence 的定义，我们不想一一介绍。相反，我们提出了我们更喜欢的定义，因为它洞察了 coherence 协议的设计。在侧边栏中，我们讨论了替代定义以及它们与我们首选定义的关系。
+在教科书和已发表的论文中出现了几种 coherence 的定义，我们不想一一介绍。相反，我们提出了我们更喜欢的定义，因为它洞察了 coherence 协议的设计。在侧边栏中，我们讨论了可替代的定义以及它们与我们首选定义的关系。
 
-原书侧边栏：Coherence 的 Consistency-Like 定义
-我们对 coherence 的首选定义是从实现的角度来定义的——指定硬件强制不变量，关于不同核心对内存位置的访问权限以及核心之间传递的数据值。
-存在另一类从程序员的角度定义 coherence 的定义，类似于内存 consistency 模型如何指定架构上可见的加载和存储顺序。
-指定 coherence 的一种 consistency-like 的方法与顺序 consistency 的定义有关。顺序 consistency (SC) 是我们在第 3 章中深入讨论的内存 consistency 模型，它指定系统必须以尊重每个线程的程序顺序的总顺序执行所有线程的加载和存储到所有内存位置。每次加载都会获取该总顺序中最近存储的值。与 SC 的定义类似的 coherence 的定义是，一个 coherent 系统必须看起来以尊重每个线程的程序顺序的总顺序执行所有线程的加载和存储到单个内存位置。这个定义强调了文献中 coherence 和 consistency 之间的一个重要区别：coherence 是在每个内存位置的基础上指定的，而 consistency 是针对所有内存位置指定的。值得注意的是，任何满足 SWMR 和数据值不变量（与不对任何特定位置的访问重新排序的流水线相结合）的 coherence 协议也可以保证满足这种 consistency-like 的 coherence 定义。 （然而，反过来不一定是真的。）
-Coherence 的另一个定义 [1, 2] 定义了具有两个不变量的一致性：（1）每个存储最终都对所有核心可见，（2）对相同内存位置的写入被序列化（即，所有核心以相同的顺序观察）。 IBM 在 Power 架构 [4] 中采取了类似的观点，部分原因是为了便于实现，其中一个核心的一系列存储可能已经到达某些核心（它们的值对这些核心的负载可见）但不包括其他核心。不变量 2 等价于我们之前描述的 consistency-like 的定义。与不变量 2 相比，不变量 2 是安全 (safety) 不变量（坏事不得发生），不变量 1 是活性 (liveness) 不变量（好事最终必须发生）。
-Hennessy 和 Patterson [3] 规定的另一个 coherence 定义由三个不变量组成：(1) 核心加载到内存位置 A 会获得该核心先前存储到 A 的值，除非另一个核心中间已存储到 A； (2) 如果 S 和负载“在时间上充分分离”并且如果 S 和负载之间没有发生其他存储，则对 A 的加载获得另一个核心对 A 的存储 S 的值； (3) 存储到相同的内存位置被序列化（与前面定义中的不变量 2 相同）。与前面的定义一样，这组不变量同时捕获了安全性和活性。
-我们通过单写多读 (single-writer-multiple-reader, SWMR) 不变量来定义 coherence。对于任何给定的内存位置，在任何给定的时刻，要么有一个核心可以写入它（也可以读取它），要么有一些核心可以读取它。因此，永远不会有一个给定的存储位置可以由一个核心写入并同时由任何其他核心读取或写入的时间。查看此定义的另一种方法是考虑，对于每个内存位置，该内存位置的生命周期被划分为多个时期。在每个时期中，要么单个核心具有读写访问权限，要么一些核心（可能为零）具有只读访问权限。图 2.3 说明了一个示例内存位置的生命周期，分为四个维持 SWMR 不变性的时期。
+>**<p align="center">Sidebar: Consistency-Like Definitions of Coherence</p>**
+>我们对 coherence 的首选定义是从实现的角度来定义的。它指定硬件强制的不变量，关于不同核心对内存位置的访问权限以及核心之间传递的数据值。
+>
+>存在另一类从程序员的角度定义 coherence 的定义，类似于 memory consistency model 如何指定架构上可见的 loads 和 stores 的顺排序。
+>
+>指定 coherence 的一种 consistency-like 的方法与 sequential consistency 的定义有关。Sequential consistency (SC) 是我们将在第 3 章中深入讨论的 memory consistency model，它指定系统必须以尊重每个线程的程序顺序的总序 (total order) 执行所有线程的到所有内存位置的 loads 和 stores。每个 load 都会获取该总序中最近 store 的值。与 SC 的定义类似的 coherence 的定义是，一个 coherent 的系统必须看起来以尊重每个线程的程序顺序的总序执行所有线程的到单个内存位置的 loads 和 stores。这个定义强调了文献中 coherence 和 consistency 之间的一个重要区别：coherence 是在每个内存位置的基础上指定的，而 consistency 是针对所有内存位置指定的。值得注意的是，任何满足 SWMR 和数据值不变量 (data-value invariants)（并与不对任何特定位置的访问重排序的流水线相结合）的 coherence 协议也可以保证满足这种 consistency-like 的 coherence 的定义。（然而，反过来不一定是真的。）
+>
+>Coherence 的另一个定义 [1, 2] 用两个不变量定义了 coherence：(1) 每个 stores 最终都对所有核心可见，(2) 对相同内存位置的 writes 被*序列化 (serialized)*（即，所有核心以相同的顺序观察）。IBM 在 Power 架构 [4] 中采取了类似的观点，部分原因是为了便于实现，其中一个核心的一系列 stores 可能已经到达某些核心（它们的值对这些核心的 loads 可见）但没有到达其他核心。不变量 2 等价于我们之前描述的 consistency-like 的定义。不变量 2 是一个*安全性 (safety)* 不变量（坏事不得发生），与之相比，不变量 1 是一个*活跃性 (liveness)* 不变量（好事最终必须发生）。
+>
+>Hennessy 和 Patterson [3] 规定的另一个 coherence 的定义由三个不变量组成：(1) 一个核心到内存位置 A 的一个 load 会获得该核心先前 store 到 A 的值，除非另一个核心中间已 store 到 A；(2) 如果 store S 和 load “在时间上充分分离”并且如果 S 和 load 之间没有发生其他 store，则对 A 的 load 获得另一个核心对 A 的 store S 的值；(3) 到相同的内存位置的 stores 被序列化（与前面定义中的不变量 2 相同）。与前面的定义一样，这组不变量同时捕获了安全性和活跃性。
+
+我们通过*单写多读 (single-writer-multiple-reader, SWMR)* 不变量来定义 coherence。对于任何给定的内存位置，在任何给定的时刻，要么有一个核心可以写入它（也可以读取它），要么有一些核心可以读取它。因此，永远不会有一个给定的内存位置可以由一个核心写入并同时由任何其他核心读取或写入的时间。查看此定义的另一种方法是考虑，对于每个内存位置，该内存位置的生命周期被划分为多个时期 (epochs)。在每个时期中，要么单个核心具有读写访问权限，要么一些核心（可能为零）具有只读访问权限。图 2.3 说明了一个示例内存位置的生命周期，分为四个维持 SWMR 不变性的时期。
+
 ![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/cc58dd17-2b95-4818-b7db-45f6a39a095a)
-除了 SWMR 不变量之外，coherence 还要求给定内存位置的值正确传播。为了解释为什么值很重要，让我们重新考虑图 2.3 中的例子。即使 SWMR 不变量成立，如果在第一个只读时期期间核心 2 和 5 可以读取不同的值，那么系统就不是 coherent。类似地，如果核心 1 在其读写时期未能读取核心 3 写入的最后一个值，或者核心 1、2 或 3 中的任何一个未能读取核心 1 在其读写时期期间执行的最后一次写入，则系统是 incoherent。
 
-因此，coherence 的定义必须用与值如何从一个时期传播到下一个时期有关的数据值不变量来增强 SWMR 不变量。该不变量表明，一个时期开始时的内存位置值与其最后一个读写时期结束时的内存位置值相同。
+除了 SWMR 不变量之外，coherence 还要求给定内存位置的值正确传播。为了解释为什么值很重要，让我们重新考虑图 2.3 中的例子。即使 SWMR 不变量成立，如果在第一个只读时期期间核心 2 和 5 可以读取不同的值，那么系统就不是 coherent 的。类似地，如果核心 1 在其读写时期未能读取核心 3 写入的最后一个值，或者核心 1、2 或 3 中的任何一个未能读取核心 1 在其读写时期期间执行的最后一次写入，则系统是 incoherent 的。
 
-译者注：请直接看下面原文关于“Coherence invariants”的定义。
-这些不变量还有其他等效的解释。一个值得注意的例子 [5] 用令牌来解释 SMWR 不变量。不变量如下。对于每个内存位置，存在固定数量的令牌，该令牌至少与核心数量一样大。如果一个核心拥有所有令牌，它可能会写入内存位置。如果一个核心有一个或多个令牌，它可能会读取内存位置。因此，在任何给定时间，一个核心都不可能在任何其他核心读取或写入内存位置的同时写入内存位置。
+因此，coherence 的定义必须用与值如何从一个时期传播到下一个时期有关的数据值不变量 (data value invariant) 来增强 SWMR 不变量。该不变量表明，一个时期开始时的内存位置值与其最后一个读写时期结束时的内存位置值相同。
 
+![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/4682ba58-0008-40b6-88c8-0e2e92ecd167)
+
+这些不变量还有其他等效的解释。一个值得注意的例子 [5] 用令牌 (tokens) 来解释 SMWR 不变量。不变量如下。对于每个内存位置，存在固定数量的令牌，该令牌至少与核心数量一样大。如果一个核心拥有所有令牌，它可能会写入内存位置。如果一个核心有一个或多个令牌，它可能会读取内存位置。因此，在任何给定时间，一个核心都不可能在任何其他核心读取或写入内存位置的同时写入这个内存位置。
 
 ### 2.4.1 维护 Coherence 不变量
-上一节中介绍的 coherence 不变量提供了一些关于 coherence 协议如何工作的直觉。绝大多数 coherence 协议，称为“无效协议”，都是为了维护这些不变量而明确设计的。如果一个核心想要读取一个内存位置，它会向其他核心发送消息以获取该内存位置的当前值，并确保没有其他核心缓存该内存位置处于读写状态的副本。这些消息结束任何活跃的读写时期并开始一个只读时期。如果一个核心想要写入一个内存位置，它会向其他核心发送消息以获取内存位置的当前值，如果它还没有有效的只读缓存副本，并确保没有其他核心有以只读或读写状态缓存内存位置的副本。这些消息结束任何活跃的读写或只读时期，并开始一个新的读写时期。这本入门读物关于缓存 coherence 的章节（第 6-9 章）极大地扩展了对无效协议的抽象描述，但基本直觉保持不变。
+
+上一节中介绍的 coherence 不变量提供了一些关于 coherence 协议如何工作的直觉。绝大多数 coherence 协议，称为“无效化协议 (invalidate protocols)”，都是为了维护这些不变量而明确设计的。如果一个核心想要读取一个内存位置，它会向其他核心发送消息以获取该内存位置的当前值，并确保没有其他核心缓存该内存位置的处于 read-write 状态的副本。这些消息结束任何活跃的 read-write 时期，并开始一个 read-only 时期。如果一个核心想要写入一个内存位置，它会向其他核心发送消息以获取内存位置的当前值，如果它还没有有效的 read-only 缓存副本，并确保没有其他核心有以 read-only 或 read-write 状态缓存该内存位置的副本。这些消息结束任何活跃的 read-write 或 read-only 时期，并开始一个新的 read-write 时期。这本入门书关于 cache coherence 的章节（第 6-9 章）极大地扩展了对无效化协议的抽象描述，但基本直觉保持不变。
 
 ### 2.4.2 Coherence 的粒度
-核心可以以各种粒度执行 load 和 store，通常范围为 1-64 字节。 理论上，可以以最精细的 load/store 粒度执行 coherence。 然而，在实践中，coherence 通常保持在缓存块的粒度上。 也就是说，硬件在逐个缓存块的基础上强制执行 coherence。 在实践中，SWMR 不变量很可能是，对于任何内存块，要么有一个写入器，要么有一些读取器。 在典型系统中，一个核心不可能写入块的第一个字节，而另一个核心正在写入该块中的另一个字节。 尽管缓存块粒度很常见，而且我们在本入门书的其余部分都假设这一点，但应该知道有些协议在更细和更粗的粒度上保持 coherence。
+
+核心可以以各种粒度呈现 loads 和 stores，通常范围为 1-64 字节。理论上，可以以最精细的 load/store 粒度执行 coherence。然而，在实践中，coherence 通常保持在缓存块的粒度上。也就是说，硬件在逐个缓存块的基础上强制实施 coherence。在实践中，SWMR 不变量很可能是，对于任何内存*块 (block)*，要么有一个 writer，要么有一些 readers。在典型系统中，一个核心不可能写入块的第一个字节，而另一个核心正在写入该块中的另一个字节。尽管缓存块粒度很常见，而且我们在本入门书的其余部分都假设这一点，但应该知道有些协议在更细和更粗的粒度上保持 coherence。
 
 ### 2.4.3 Coherence 何时相关？
-Coherence 的定义——无论我们选择哪种定义——仅在某些情况下相关，架构师必须意识到它何时适用，何时不适用。 我们现在讨论两个重要问题。
 
-• Coherence 适用于保存共享地址空间中的块的所有存储结构。 这些结构包括 L1 数据缓存、L2 缓存、共享最后一级缓存 (LLC) 和主存储器。 这些结构还包括 L1 指令高速缓存和转换后备缓冲区 (TLB)。（注2）
+Coherence 的定义，无论我们选择哪种定义，仅在某些情况下相关，架构师必须意识到它何时适用，何时不适用。我们现在讨论两个重要问题。
 
-原书作者注 2：在某些架构中，TLB 可以保存不是共享内存中块的严格副本的映射。
-• 程序员不能直接看到 coherence。 相反，处理器流水线和 coherence 协议共同强制执行 consistency 模型——并且只有 consistency 模型对程序员可见。
+* Coherence 适用于持有共享地址空间中的块的*所有*存储结构。这些结构包括 L1 数据缓存、L2 缓存、共享的最后一级缓存 (LLC) 和主存。这些结构还包括 L1 指令缓存和转换后备缓冲区 (TLB)。（注2）
+* 程序员不能直接看到 coherence。相反，处理器流水线和 coherence 协议共同强制实施 consistency model，并且只有 consistency model 对程序员可见。
+
+>原书作者注 2：在某些架构中，TLB 可以保存不是共享内存中块的严格副本的映射。
 
 ## 2.5 参考文献
-[1] K.Gharachorloo.Memoryconsistencymodelsforshared-memorymultiprocessors.Ph.D. thesis, Computer System Laboratory, Stanford University, December 1995. 15
 
-[2] K. Gharachorloo, D. Lenoski, J. Laudon, P. Gibbons, A. Gupta, and J. Hennessy. Memory consistency and event ordering in scalable shared-memory. In Proc. of the 17th Annual International Symposium on Computer Architecture, pp. 15–26, May 1990. DOI: 10.1109/isca.1990.134503. 15
+[1] K. Gharachorloo. Memory consistency models for shared-memory multiprocessors. Ph.D. thesis, Computer System Laboratory, Stanford University, December 1995.
 
-[3] J. L. Hennessy and D. A. Patterson. Computer Architecture: A Quantitative Approach, 4th ed. Morgan Kaufmann, 2007. 15
+[2] K. Gharachorloo, D. Lenoski, J. Laudon, P. Gibbons, A. Gupta, and J. Hennessy. Memory consistency and event ordering in scalable shared-memory. In Proc. of the 17th Annual International Symposium on Computer Architecture, pp. 15–26, May 1990. DOI: 10.1109/isca.1990.134503.
 
-[4] IBM. Power ISA Version 2.06 Revision B. http://www.power.org/resources/ downloads/PowerISA_V2.06B_V2_PUBLIC.pdf, July 2010. 15
+[3] J. L. Hennessy and D. A. Patterson. Computer Architecture: A Quantitative Approach, 4th ed. Morgan Kaufmann, 2007.
 
-[5] M. M. K. Martin, M. D. Hill, and D. A. Wood. Token coherence: Decoupling performance and correctness. In Proc. of the 30th Annual International Symposium on Computer Architecture, June 2003. DOI: 10.1109/isca.2003.1206999. 13
+[4] IBM. Power ISA Version 2.06 Revision B. http://www.power.org/resources/downloads/PowerISA_V2.06B_V2_PUBLIC.pdf, July 2010.
+
+[5] M. M. K. Martin, M. D. Hill, and D. A. Wood. Token coherence: Decoupling performance and correctness. In Proc. of the 30th Annual International Symposium on Computer Architecture, June 2003. DOI: 10.1109/isca.2003.1206999.
