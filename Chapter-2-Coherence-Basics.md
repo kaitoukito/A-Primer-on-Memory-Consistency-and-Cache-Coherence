@@ -1,36 +1,45 @@
 # 第二章：Coherence 基础
-在本章中，我们介绍了足够多的关于缓存 coherence 的内容，以了解 consistency 模型如何与缓存交互。 我们从第 2.1 节开始，介绍我们在本入门书中考虑的系统模型。 为了简化本章和后续章节的阐述，我们选择了足以说明重要问题的最简单的系统模型； 我们把与更复杂的系统模型相关的问题推迟到第 9 章。 2.2 节解释了必须解决的缓存 coherence 问题以及 incoherence 的可能性是如何产生的。 2.3 节精确定义了缓存 coherence。
+
+在本章中，我们介绍了足够多的关于 cache coherence 的内容，以了解 consistency 模型如何与缓存交互。我们从第 2.1 节开始，介绍我们在本入门书中考虑的系统模型。为了简化本章和后续章节的阐述，我们选择了足以说明重要问题的最简单的系统模型；我们把与更复杂的系统模型相关的问题推迟到第 9 章。2.2 节解释了必须解决的 cache coherence 问题以及 incoherence 的可能性是如何产生的。2.3 节精确定义了 cache coherence。
 
 ## 2.1 基准系统模型
-在本入门教程中，我们考虑了具有多个共享内存的处理器核心的系统。也就是说，所有核心都可以对所有（物理）地址执行 load 和 store。基准系统模型包括单个多核处理器芯片和片外主存储器，如图 2.1 所示。多核处理器芯片由多个单线程核心组成，每个核心都有自己的私有数据缓存，以及一个由所有核心共享的最后一级缓存（LLC）。在本入门教程中，当我们使用术语“缓存”时，我们指的是核心的私有数据缓存，而不是 LLC。每个核心的数据缓存都使用物理地址进行访问并进行回写。核心和 LLC 通过互连网络相互通信。 LLC 尽管位于处理器芯片上，但在逻辑上是“内存端缓存”，因此不会引入另一个级别的 coherence 问题。 LLC 在逻辑上就在内存前面，用于减少内存访问的平均延迟并增加内存的有效带宽。 LLC 还用作片上存储器控制器。
 
-此基准系统模型省略了许多常见但对于本入门书的大部分内容而言并非必需的功能。这些功能包括指令高速缓存、多级高速缓存、多核之间共享的高速缓存、虚拟寻址高速缓存、TLB 和 coherent DMA。基准系统模型也忽略了多个多核芯片的可能性。我们稍后会讨论所有这些特性，但现在，它们会增加不必要的复杂性。
+在本入门书中，我们考虑了具有共享内存的多处理器核心的系统。也就是说，所有核心都可以对所有（物理）地址呈现 (perform) loads 和 stores。基准系统模型包括单个多核处理器芯片和片外主存，如图 2.1 所示。多核处理器芯片由多个单线程核心组成，每个核心都有自己的私有数据缓存，以及一个由所有核心共享的最后一级缓存 (last-level cache, LLC)。在本入门书中，当我们使用术语“缓存 (cache)”时，我们指的是核心的私有数据缓存，而不是 LLC。每个核心的数据缓存都使用物理地址进行访问并且都是写回 (write-back) 的。核心和 LLC 通过互连网络相互通信。LLC 尽管位于处理器芯片上，但在逻辑上是“内存端缓存 (memory-side cache)”，因此不会引入另一个级别的 coherence 问题。LLC 在逻辑上就在内存前面，用于减少内存访问的平均延迟并增加内存的有效带宽。LLC 还用作片上内存控制器。
+
 ![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/f6bec239-8d86-4c63-ba41-8a18b2795d93)
 
+此基准系统模型省略了许多常见但对于本入门书的大部分内容而言并非必需的功能。这些功能包括指令缓存、多级缓存、多核之间共享的缓存、虚拟寻址缓存、TLB 和 coherent DMA。基准系统模型也忽略了多个多核芯片的可能性。我们稍后会讨论所有这些特性，但现在，它们会增加不必要的复杂性。
+
 ## 2.2 问题：Incoherence 是如何发生的
+
 出现 incoherence 的可能性只是因为一个基本问题：存在多个可以访问缓存和内存的参与者。在现代系统中，这些参与者是处理器核心、DMA 引擎和可以读取和/或写入缓存和内存的外部设备。在本入门书的其余部分中，我们通常关注作为核心的参与者，但值得记住的是，可能存在其他参与者。
 
-表 2.1 说明了一个 incoherence 的简单示例。最初，内存位置 A 在内存以及两个核心的本地缓存中的值为 42。在时间 1，Core 1 将其缓存中内存位置 A 的值从 42 更改为 43，从而使 Core 2 在其缓存中的 A 值陈旧。核心 2 执行一个 while 循环，从其本地缓存中反复加载 A 的（陈旧）值。显然，这是一个 incoherence 的例子，因为来自 Core 1 的存储对 Core 2 不可见，因此 C2 卡在 while 循环中。
+表 2.1 说明了一个 incoherence 的简单示例。最初，内存位置 A 在内存以及两个核心的本地缓存中的值为 42。在时间 1，Core 1 将其缓存中内存位置 A 的值从 42 更改为 43，从而使 Core 2 在其缓存中的 A 值陈旧。Core 2 执行一个 while 循环，从其局部缓存中反复加载 A 的（陈旧）值。显然，这是一个 incoherence 的例子，因为来自 Core 1 的 store 对 Core 2 不可见，因此 C2 卡在 while 循环中。
 
-为了防止 incoherence，系统必须实现一个缓存 coherence 协议，使 Core 1 的 store 对 Core 2 可见。这些缓存 coherence 协议的设计和实现是第6-9章的主要主题。
 ![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/fa4e43cb-9104-4f71-95bf-2702d3ad89dc)
 
-## 2.3 缓存 Coherence 接口
-非正式地，coherence 协议必须确保写入对所有处理器可见。在本节中，我们将通过它们公开的抽象接口更正式地理解 coherence 协议。
+为了防止 incoherence，系统必须实现一个 cache coherence 协议，使 Core 1 的 store 对 Core 2 可见。这些 cache coherence 协议的设计和实现是第 6-9 章的主要主题。
 
-处理器核心通过 coherence 接口（图 2.2）与 coherence 协议交互，该接口提供两种方法：（1）读取请求方法，将内存位置作为参数并返回值； (2) 一个写入请求方法，它接受一个内存位置和一个值（要写入的）作为参数并返回一个确认。
+## 2.3 Cache Coherence 接口
 
-文献中出现了许多 coherence 协议，并已在实际处理器中使用。我们根据它们的 coherence 接口的性质将这些协议分为两类 - 具体来说，基于 consistency 模型中的 coherence 是否清晰分离，或者它们是否不可分割。
+非正式地，coherence 协议必须确保 writes 对所有处理器可见。在本节中，我们将通过它们公开的抽象接口更正式地理解 coherence 协议。
 
-Consistency-agnostic coherence。在第一类中，写入在返回之前对所有其他核心可见。因为写入是同步传播的，所以第一类提供了一个与原子内存系统（没有缓存）相同的接口。因此，任何与 coherence 协议交互的子系统——例如，处理器核心流水线——都可以假设它正在与不存在缓存的原子内存系统交互。从 consistency 执行的角度来看，这种 coherence 接口可以很好地分离关注点。缓存 coherence 协议将缓存完全抽象出来并呈现出原子内存的错觉——就好像缓存被移除，只有内存包含在 coherence 框内（图 2.2）——而处理器核心流水线强制执行由 consistency 模型规范。
+处理器核心通过 coherence 接口（图 2.2）与 coherence 协议交互，该接口提供两种方法：(1) *read-request* 方法，将内存位置作为参数并返回一个值；(2) *write-request* 方法，它接受一个内存位置和一个值（要写入的）作为参数并返回一个确认 (acknowledgment)。
 
-Consistency-directed coherence。在第二类，较新的类别中，写入是异步传播的——因此，写入可以在所有处理器可见之前返回，从而允许观察过时的值（实时）。但是，为了正确执行 consistency，此类中的 coherence 协议必须确保最终使写入可见的顺序符合 consistency 模型规定的排序规则。回到图 2.2，流水线和 coherence 协议都强制执行 consistency 模型要求的排序。第二类的出现是为了支持基于吞吐量的通用图形处理单元 (GP-GPU)，并在本入门书第一版出版后受到重视。（注1）
-
-原书作者注 1：对于那些关心 consistency 影响的人，请注意，使用这种方法可以强制实施各种 consistency 模型，包括 SC 和 TSO 等强模型。
 ![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/8b3e3296-efae-4606-88e8-3675bbce7a9b)
+
+文献中出现了许多 coherence 协议，并已在实际处理器中使用。我们根据它们的 coherence 接口的性质将这些协议分为两类。具体来说，基于 consistency model 和 coherence 是否可以清晰分离，或者它们是否不可分割。
+
+**Consistency-agnostic coherence.** 在第一类中，一个 write 在返回之前对所有其他核心可见。因为 writes 是同步传播的，所以第一类提供了一个与原子内存系统（没有缓存）相同的接口。因此，任何与 coherence 协议交互的子系统，例如处理器核心流水线，都可以假设它正在与不存在缓存的原子内存系统交互。从 consistency 强制实施的角度来看，这种 coherence 接口可以很好地分离关注点。Cache coherence 协议将缓存完全抽象出来并呈现出原子内存的错觉，就好像缓存被移除一样，只有内存包含在 coherence 框内（图 2.2），而处理器核心流水线强制实施 consistency model 规范中的排序。
+
+**Consistency-directed coherence.** 在第二类这种较新的类别中，writes 是异步传播的。因此，一个 write 可以在所有处理器可见之前返回，从而允许（实时）观察过时的值。但是，为了正确强制实施 consistency，此类中的 coherence 协议必须确保最终使 writes 可见的顺序符合 consistency model 规定的排序规则。回到图 2.2，流水线和 coherence 协议一起强制实施 consistency model 要求的排序。第二类的出现是为了支持基于吞吐量的通用图形处理单元 (GP-GPUs)，并在本入门书第一版出版后受到重视。（注1）
+
+>原书作者注 1：对于那些关心 consistency 影响的人，请注意，使用这种方法可以强制实施各种 consistency model，包括 SC 和 TSO 等强模型。
+
 本入门书（以及本章的其余部分）侧重于第一类 coherence 协议。我们在异构 coherence 的背景下讨论第二类 coherence 协议（第 10 章）。
 
 ## 2.4 Consistency-agnostic coherence 不变量
+
 Coherence 协议必须满足哪些不变量才能使缓存不可见并呈现原子存储系统的抽象？
 
 在教科书和已发表的论文中出现了几种 coherence 的定义，我们不想一一介绍。相反，我们提出了我们更喜欢的定义，因为它洞察了 coherence 协议的设计。在侧边栏中，我们讨论了替代定义以及它们与我们首选定义的关系。
