@@ -248,7 +248,9 @@ RELEASE -> RELEASE
 
 写原子性意味着因果关系。例如，在表 5.9 中，核心 C2 观察存储 S1，执行 FENCE，然后存储 S2。通过写原子性，这确保了 C3 将存储 S1 视为已完成。
 因果关系并不意味着写原子性。对于表 5.10，假设核心 C1 和 C3 是共享写入缓冲区的多线程核心的两个线程上下文。假设核心 C2 和 C4 相同。让 C1 将 S1 放在 C1-C3 写缓冲区中，所以它只被 C3 的 L1 观察到。同样，C2 将 S2 放入 C2-C4 写缓冲区，因此 S2 仅由 C4 的 L3 观察。在任一存储离开写缓冲区之前，让 C3 执行 L2 和 C4 执行 L4。这种执行违反了写原子性。然而，使用表 5.9 中的示例，可以看出这种设计提供了因果关系。
+
 ![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/e28192e9-b197-4441-b559-46a2a87394e5)
+
 最后，XC 内存模型既是存储原子的，又是保持因果关系的。我们之前认为 XC 是存储原子的。 XC 保持因果关系，因为存储原子性意味着因果关系。
 
 ## 5.6 宽松内存模型案例研究
@@ -280,22 +282,30 @@ FENCE.TSO.
 
 原书作者注3：R 表示读取（加载），W 表示写入（存储）。
 一个例子。表 5.11 显示了一个包含 RELEASE-ACQUIRE 和 FENCE 顺序的示例。由于前者，S1 -> L1 在核心 C1 中强制执行；由于后者，S2 -> L2 在核心 C2 中强制执行。因此，这种组合确保 r1 和 r2 不能都读取 0。
+
 ![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/d950cfb6-b18d-45ef-b185-18c6fc7c9628)
+
 依赖引起的顺序。RVWMO 在某些方面略强于 XC。地址、数据和控制相关性可以在 RVWMO 中引起内存顺序，但在 XC 中则不然。考虑表 5.12 中所示的示例。这里，核心 C1 向 data2 写入 NEW，然后设置指针指向 data2 的位置。（通过 FENCE W, W 指令对两个存储 S1 和 S2 进行排序）。在核心 C2 中，L1 将指针的值加载到 r1 中，然后加载 L2 解引用 (dereference) r1。尽管两个加载 L1 和 L2 没有明确排序，但 RVWMO 隐式强制执行 L1 -> L2，因为 L1 和 L2 之间存在地址依赖 (address dependency)：L1 产生的值被 L2 解引用。
+
 ![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/4ceb5d93-8230-4484-891e-15f3ff713e71)
+
 考虑表 5.13 中显示的示例，也称为加载缓冲 (load buffering)。让我们假设 x 和 y 最初都是 0。可以允许 r1 和 r2 凭空读取任意值（比如 42）吗？有点令人惊讶的是，XC 并不禁止这种行为。因为在 L1 和 S1 以及 L2 和 S2 之间都没有 FENCE，所以 XC 不会强制任何一个 Load -> Store 顺序。这可能会导致执行以下操作：
 
 S1 预测 L1 将读取 42，然后推测性地将 42 写入 y，
 L2 从 y 读取 42 到 r2，
 S2 将 42 写入 x，并且
 L1 将 42 从 x 读入 r1，从而使初始预测“正确”。
+
 ![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/f4104bba-b44e-45f4-9501-b5eeb4b4f92c)
+
 译者注：注意区别，这个例子中是寄存器编号相同、而不是内存地址相同，所以不违反 XC 的规则。
 译者注：顺便提一句，这边作者玩了一个 "42" 的梗，哈哈哈。
 然而，RVWMO 通过隐式强制 Load -> Store 顺序 (L1 -> S1 和 L2 -> S2) 来禁止这种行为，因为每个加载和存储之间存在数据依赖 (data dependency) 关系：每个加载读取的值由接下来的存储写入。
 
 与此类似，RVWMO 还隐式地强制在加载和后续存储之间进行排序，该存储控制依赖 (control dependent) 于加载。这是为了防止因果循环，例如表 5.14 中所示，其中存储能够影响由先前加载读取的值，该值决定存储是否必须执行。
+
 ![image](https://github.com/kaitoukito/A-Primer-on-Memory-Consistency-and-Cache-Coherence/assets/34410167/b5ff4f3b-77a0-4c97-b5c9-51a33dfe0f7d)
+
 值得注意的是，上述所有依赖都是指句法 (syntactic) 依赖而不是语义 (semantic) 依赖，即是否存在寄存器编号依赖的函数，而不是实际值。除了地址、数据和控制之外，RVWMO 还强制执行“流水线依赖 (pipeline dependency)”以反映大多数处理器流水线实现的行为；对此的讨论超出了本入门的范围，读者可以参考 RISC-V 规范 [31]。
 
 相同地址的顺序。回想一下，XC 为访问同一地址维护了 TSO 顺序规则。与 XC 一样，RVWMO 也强制执行
