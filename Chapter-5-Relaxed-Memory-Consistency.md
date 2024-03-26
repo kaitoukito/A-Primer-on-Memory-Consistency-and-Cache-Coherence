@@ -55,16 +55,17 @@ XC 提供了 FENCE 指令，以便程序员可以指示何时需要顺序；否�
 
 XC 的内存顺序保证尊重（保留）程序顺序：
 
-Load -> FENCE
-Store -> FENCE
-FENCE -> FENCE
-FENCE -> Load
-FENCE -> Store
+- Load -> FENCE
+- Store -> FENCE
+- FENCE -> FENCE
+- FENCE -> Load
+- FENCE -> Store
+  
 XC 维护 TSO 规则，用于仅对同一地址进行两次访问：
 
-Load -> Load to the same address
-Load -> Store to the same address
-Store -> Store to the same address
+- Load -> Load to the same address
+- Load -> Store to the same address
+- Store -> Store to the same address
 这些规则强制执行顺序处理器模型（即顺序核心语义）并禁止可能让程序员感到惊讶的行为。 例如，Store -> Store 规则防止执行 "A = 1" 然后 "A = 2" 的临界区在 A 设置为 1 的情况下奇怪地完成。同样，Load -> Load 规则确保如果 B 最初为 0 并且另一个线程执行 "B = 1"，则当前线程无法执行 "r1 = B" 然后 "r2 = B"，其中 r1 得到 1，r2 得到 0，就好像 B 的值从新变旧。
 
 XC 确保加载由于它们自己的存储而立即看到更新（如 TSO 的写缓冲区旁路）。该规则保留了单线程的顺序性，也避免了程序员的惊讶。
