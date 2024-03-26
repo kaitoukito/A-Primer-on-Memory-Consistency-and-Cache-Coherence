@@ -155,5 +155,7 @@ Update protocol：当一个核心希望写入一个块时，它会启动一个�
 
 [10] P. Sweazey and A. J. Smith. A class of compatible cache consistency protocols and their support by the IEEE Futurebus. In Proc. of the 13th Annual International Symposium on Computer Architecture, pp. 414–423, June 1986. DOI: 10.1145/17356.17404. 97, 98
 
-6.6 译者注：一个 MESI 协议小玩具
+## 6.6 译者扩展：一个 MESI 协议小玩具
 这个小玩具可以帮助理解 MESI 协议。
+
+https://www.scss.tcd.ie/jeremy.jones/vivio/caches/MESI.htm
